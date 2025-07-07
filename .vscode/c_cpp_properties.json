@@ -1,0 +1,31 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/xytron/xycar_ws/install/yolo_msgs/include/**",
+        "/home/xytron/xycar_ws/install/xycar_msgs/include/**",
+        "/home/xytron/xycar_ws/install/vesc_driver/include/**",
+        "/home/xytron/xycar_ws/install/vesc_ackermann/include/**",
+        "/home/xytron/xycar_ws/install/vesc_msgs/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/xytron/xycar_ws/src/xycar_application/app_viewer_all/include/**",
+        "/home/xytron/xycar_ws/src/xycar_application/app_web_controller/include/**",
+        "/home/xytron/xycar_ws/src/xycar_device/vesc/vesc_ackermann/include/**",
+        "/home/xytron/xycar_ws/src/xycar_device/vesc/vesc_driver/include/**",
+        "/home/xytron/xycar_ws/src/xycar_device/xycar_msgs/include/**",
+        "/home/xytron/xycar_ws/src/xycar_device/xycar_ultrasonic/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
