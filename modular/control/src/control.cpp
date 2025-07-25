@@ -2,7 +2,7 @@
 
 
 int main(){
-    std::cout << "Hello world" << std::endl;
+    std::cout << "I'm control_node" << std::endl;
     // Additional initialization code can go here
     return 0;
 }
