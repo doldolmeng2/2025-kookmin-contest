@@ -1,0 +1,22 @@
+running egg_info
+writing build/manual_drive/manual_drive.egg-info/PKG-INFO
+writing dependency_links to build/manual_drive/manual_drive.egg-info/dependency_links.txt
+writing entry points to build/manual_drive/manual_drive.egg-info/entry_points.txt
+writing requirements to build/manual_drive/manual_drive.egg-info/requires.txt
+writing top-level names to build/manual_drive/manual_drive.egg-info/top_level.txt
+reading manifest file 'build/manual_drive/manual_drive.egg-info/SOURCES.txt'
+writing manifest file 'build/manual_drive/manual_drive.egg-info/SOURCES.txt'
+running build
+running build_py
+copying manual_drive/joystic.py -> /home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/build/lib/manual_drive
+running install
+running install_lib
+copying /home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/build/lib/manual_drive/joystic.py -> /home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages/manual_drive
+byte-compiling /home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages/manual_drive/joystic.py to joystic.cpython-310.pyc
+running install_data
+running install_egg_info
+removing '/home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages/manual_drive-0.0.0-py3.10.egg-info' (and everything under it)
+Copying build/manual_drive/manual_drive.egg-info to /home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages/manual_drive-0.0.0-py3.10.egg-info
+running install_scripts
+Installing joystic script to /home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/manual_drive
+writing list of installed files to '/home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/install.log'

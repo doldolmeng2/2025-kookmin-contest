@@ -1,0 +1,25 @@
+[0.964s] Invoking command in '/home/xytron/xycar_ws/src/study/manual_drive': PYTHONPATH=/home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/manual_drive build --build-base /home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/build install --record /home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/install.log --single-version-externally-managed install_data
+[1.257s] running egg_info
+[1.258s] writing build/manual_drive/manual_drive.egg-info/PKG-INFO
+[1.258s] writing dependency_links to build/manual_drive/manual_drive.egg-info/dependency_links.txt
+[1.258s] writing entry points to build/manual_drive/manual_drive.egg-info/entry_points.txt
+[1.258s] writing requirements to build/manual_drive/manual_drive.egg-info/requires.txt
+[1.258s] writing top-level names to build/manual_drive/manual_drive.egg-info/top_level.txt
+[1.260s] reading manifest file 'build/manual_drive/manual_drive.egg-info/SOURCES.txt'
+[1.266s] writing manifest file 'build/manual_drive/manual_drive.egg-info/SOURCES.txt'
+[1.266s] running build
+[1.266s] running build_py
+[1.266s] copying manual_drive/joystic.py -> /home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/build/lib/manual_drive
+[1.266s] running install
+[1.266s] running install_lib
+[1.266s] copying /home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/build/lib/manual_drive/joystic.py -> /home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages/manual_drive
+[1.266s] byte-compiling /home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages/manual_drive/joystic.py to joystic.cpython-310.pyc
+[1.267s] running install_data
+[1.267s] copying launch/manual_drive.launch.py -> /home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/share/manual_drive/launch
+[1.267s] running install_egg_info
+[1.267s] removing '/home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages/manual_drive-0.0.0-py3.10.egg-info' (and everything under it)
+[1.267s] Copying build/manual_drive/manual_drive.egg-info to /home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages/manual_drive-0.0.0-py3.10.egg-info
+[1.267s] running install_scripts
+[1.288s] Installing joystic script to /home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/manual_drive
+[1.288s] writing list of installed files to '/home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/install.log'
+[1.309s] Invoked command in '/home/xytron/xycar_ws/src/study/manual_drive' returned '0': PYTHONPATH=/home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/xytron/xycar_ws/src/study/manual_drive/install/manual_drive/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/manual_drive build --build-base /home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/build install --record /home/xytron/xycar_ws/src/study/manual_drive/build/manual_drive/install.log --single-version-externally-managed install_data
