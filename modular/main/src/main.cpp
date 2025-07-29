@@ -1,4 +1,4 @@
-#include "main.hpp"
+#include "main/main.hpp"
 
 ImageSubscriberNode::ImageSubscriberNode()
 : Node("image_subscriber_node")
