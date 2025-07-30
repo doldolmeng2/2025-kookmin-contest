@@ -10,5 +10,21 @@
   "white_min_s": 0,
   "white_max_s": 60,
   "white_min_v": 180,
-  "white_max_v": 255
+  "white_max_v": 255,
+  "lane_mode": "ONE_LANE",
+  "frame_width": 640,
+  "frame_height": 360,
+  "roi_height_coefficient": 0.6,
+  "roi_top_width_coefficient": 0.6,
+  "roi_bottom_width_coefficient": 3,
+  "sliding_window_num_windows": 30,
+  "sliding_window_margin": 70,
+  "sliding_window_minpix": 5,
+  "gaussian_blur_kernel_size": 5,
+  "canny_high_threshold": 150,
+  "canny_low_threshold": 200,
+  "kernel_yellow_closing_size": 35,
+  "kernel_yellow_opening_size": 3,
+  "kernel_white_closing_size": 9,
+  "kernel_white_opening_size": 3
 }

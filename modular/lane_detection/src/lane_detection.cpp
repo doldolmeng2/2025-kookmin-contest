@@ -15,24 +15,17 @@ struct LaneLines {
     Vec2f center_fit;
 };
 
-enum class LaneMode {
-    ONE_LANE,  // 왼쪽 흰색 + 중앙 노란선 기준
-    TWO_LANE   // 중앙 노란선 + 오른쪽 흰색 기준
-};
-
-constexpr int FRAME_WIDTH = 640;
-constexpr int FRAME_HEIGHT = 360;
-
-constexpr int roi_height = static_cast<int>(FRAME_HEIGHT * 0.6);
-constexpr int roi_top_width = static_cast<int>(FRAME_WIDTH * 0.6);
-constexpr int roi_bottom_width = static_cast<int>(FRAME_WIDTH * 3);
-
-
 class LaneDetector : public rclcpp::Node {
 public:
     LaneDetector(const Config& config) 
-    : Node("lane_detector_node"), config_(config) {
-        RCLCPP_INFO(this->get_logger(), "yellow_min_h: %d", config_.yellow_min_h);
+    : Node("lane_detector_node"), config_(config),
+    frame_width_(config_.frame_width), // 필요 시 config에서 불러올 수도 있음
+    frame_height_(config_.frame_height),
+    roi_height_(static_cast<int>(frame_height_ * config_.roi_height_coefficient)),
+    roi_top_width_(static_cast<int>(frame_width_ * config_.roi_top_width_coefficient)),
+    roi_bottom_width_(static_cast<int>(frame_width_ * config_.roi_bottom_width_coefficient)) 
+    {
+        RCLCPP_INFO(this->get_logger(), "roi_bottom_width_: %d", roi_bottom_width_);
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             "/image_raw", 10,
             std::bind(&LaneDetector::imageCallback, this, std::placeholders::_1)
@@ -71,20 +64,20 @@ public:
     }
 
     std::vector<Point> detectLaneFromMask(const Mat& binary_mask, const std::string& mask_type, bool is_left, Mat& debug_window_vis) {
-        int roi_y_start = FRAME_HEIGHT - roi_height;
-        int roi_y_end = FRAME_HEIGHT;
+        int roi_y_start = frame_height_ - roi_height_;
+        int roi_y_end = frame_height_;
 
         // 히스토그램 기반 시작점
-        Mat roi_mask = binary_mask(Rect(0, roi_y_start, FRAME_WIDTH, roi_height));
-        std::vector<int> histogram(FRAME_WIDTH, 0);
-        for (int x = 0; x < FRAME_WIDTH; ++x) {
+        Mat roi_mask = binary_mask(Rect(0, roi_y_start, frame_width_, roi_height_));
+        std::vector<int> histogram(frame_width_, 0);
+        for (int x = 0; x < frame_width_; ++x) {
             histogram[x] = countNonZero(roi_mask.col(x));
         }
         
         // 2. 시작점 계산
         int base_x;
         if (mask_type == "white") {
-            int midpoint = FRAME_WIDTH / 2;
+            int midpoint = frame_width_ / 2;
             base_x = is_left
                 ? std::distance(histogram.begin(), std::max_element(histogram.begin(), histogram.begin() + midpoint))
                 : std::distance(histogram.begin(), std::max_element(histogram.begin() + midpoint, histogram.end()));
@@ -96,10 +89,10 @@ public:
         }
 
         // Sliding window 파라미터
-        int num_windows = 30;  // 블록 개수
-        int margin = 70; // 탐색 범위(블록 width)
-        const size_t minpix = 5; // 유효한 픽셀이 minpix 이상이면 중심 좌표 업데이트
-        int window_height = roi_height / num_windows;
+        int num_windows = config_.sliding_window_num_windows;  // 블록 개수
+        int margin = config_.sliding_window_margin; // 탐색 범위(블록 width)
+        const size_t minpix = config_.sliding_window_minpix; // 유효한 픽셀이 minpix 이상이면 중심 좌표 업데이트
+        int window_height = roi_height_ / num_windows;
 
         std::vector<Point> lane_points;
         int x_current = base_x;
@@ -117,7 +110,7 @@ public:
             std::vector<int> nonzero_x;
             for (int y = win_y_low; y < win_y_high; ++y) {
                 for (int x = win_x_low; x < win_x_high; ++x) {
-                    if (x >= 0 && x < FRAME_WIDTH && binary_mask.at<uchar>(y, x) > 0) {
+                    if (x >= 0 && x < frame_width_ && binary_mask.at<uchar>(y, x) > 0) {
                         lane_points.emplace_back(x, y);
                         nonzero_x.push_back(x);
                     }
@@ -248,6 +241,11 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr offset_pub_;
     LaneMode lane_mode_;
     Config config_;
+    int frame_width_;
+    int frame_height_;
+    int roi_height_;
+    int roi_top_width_;
+    int roi_bottom_width_;
 
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         // ROS 이미지 → OpenCV Mat
@@ -261,7 +259,7 @@ private:
 
         // 리사이즈
         Mat resized_img;
-        resize(cv_ptr->image, resized_img, Size(FRAME_WIDTH, FRAME_HEIGHT));
+        resize(cv_ptr->image, resized_img, Size(frame_width_, frame_height_));
 
         // 전처리
         auto [white_mask, yellow_mask] = preprocessImage(resized_img);
@@ -275,7 +273,7 @@ private:
         drawLaneLine(resized_img, lines.right_fit, Scalar(0, 0, 255));   // 오른쪽 차선: 빨강
 
         // offset 계산
-        lane_mode_ = LaneMode::ONE_LANE; // 이거는 나중에 외부에서 받아야 함.
+        lane_mode_ = config_.lane_mode; // 이거는 나중에 외부에서 받아야 함.
         float offset;
         if (lane_mode_ == LaneMode::ONE_LANE) {
             offset = calculateOffsetByIntersection(lines.left_fit, lines.center_fit, resized_img.cols);
@@ -288,8 +286,8 @@ private:
         offset_msg.data = offset;
         offset_pub_->publish(offset_msg);
 
-        // 슬라이더 이미지 생성 (길이: FRAME_WIDTH, 높이: 50)
-        int slider_width = FRAME_WIDTH;
+        // 슬라이더 이미지 생성 (길이: frame_width_, 높이: 50)
+        int slider_width = frame_width_;
         int slider_height = 50;
         Mat slider(slider_height, slider_width, CV_8UC3, Scalar(50, 50, 50));
 
@@ -323,13 +321,13 @@ private:
     }
 
     std::pair<Mat, Mat> preprocessImage(const Mat& frame) {
-        Mat roi_frame = applyTrapezoidROI(frame, roi_top_width, roi_bottom_width, roi_height);
+        Mat roi_frame = applyTrapezoidROI(frame, roi_top_width_, roi_bottom_width_, roi_height_);
         // imshow("roi_frame", roi_frame);
         // waitKey(1);
         Mat blurred, hsv, white_mask, yellow_mask, edge_mask, final_mask;
 
         // 1. Blur로 빛 번짐 제거
-        GaussianBlur(roi_frame, blurred, Size(5, 5), 0);
+        GaussianBlur(roi_frame, blurred, Size(config_.gaussian_blur_kernel_size, config_.gaussian_blur_kernel_size), 0);
         // imshow("Blurred", blurred);
         // waitKey(1);
 
@@ -347,25 +345,28 @@ private:
         // waitKey(1); 
 
         // 4. Canny Edge 검출
-        Mat edges;
-        Canny(blurred, edges, 150, 200); // , , 하한선, 상한선
+        Mat edges;  
+        // gradient > high_threshold: 확실한 에지 → 채택
+        // gradient < low_threshold: 확실히 아님 → 제외
+        // low_threshold ~ high_threshold: 주변에 강한 에지가 있으면 채택
+        cv::Canny(blurred, edges, config_.canny_low_threshold, config_.canny_high_threshold); // , , low_threshold, high_threshold
         // imshow("Canny Edges", edges);
         // waitKey(1); 
 
         // 두껍게 만들기 (팽창 연산)
         Mat thick_edges_yellow;
-        Mat kernel_yellow_closing = getStructuringElement(MORPH_RECT, Size(35, 35));
+        Mat kernel_yellow_closing = getStructuringElement(MORPH_RECT, Size(config_.kernel_yellow_closing_size, config_.kernel_yellow_closing_size));
         morphologyEx(edges, thick_edges_yellow, MORPH_CLOSE, kernel_yellow_closing);
         // 2. Opening (노이즈 제거)
-        Mat kernel_yellow_opening = getStructuringElement(MORPH_RECT, Size(3, 3));
+        Mat kernel_yellow_opening = getStructuringElement(MORPH_RECT, Size(config_.kernel_yellow_opening_size, config_.kernel_yellow_opening_size));
         morphologyEx(thick_edges_yellow, thick_edges_yellow, MORPH_OPEN, kernel_yellow_opening);
 
         Mat thick_edges_white;
         // 1. Closing (점선 연결)
-        Mat kernel_white_closing = getStructuringElement(MORPH_RECT, Size(9, 9));
+        Mat kernel_white_closing = getStructuringElement(MORPH_RECT, Size(config_.kernel_white_closing_size, config_.kernel_white_closing_size));
         morphologyEx(edges, thick_edges_white, MORPH_CLOSE, kernel_white_closing);
         // 2. Opening (노이즈 제거)
-        Mat kernel_white_opening = getStructuringElement(MORPH_RECT, Size(3, 3));
+        Mat kernel_white_opening = getStructuringElement(MORPH_RECT, Size(config_.kernel_white_opening_size, config_.kernel_white_opening_size));
         morphologyEx(thick_edges_white, thick_edges_white, MORPH_OPEN, kernel_white_opening);
 
         // 5. Edge + 마스크 AND 연산
