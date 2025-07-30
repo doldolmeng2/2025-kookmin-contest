@@ -12,9 +12,13 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # 실행 파일 빌드
-add_executable(lane_node src/lane_detection.cpp)
+add_executable(lane_node
+  src/lane_detection.cpp
+  src/parameter_loader.cpp
+)
 add_executable(hsv_tuner_node src/hsv_tuner.cpp)
 
 # ROS2 의존성 연결
@@ -37,6 +41,8 @@ install(TARGETS hsv_tuner_node
 target_include_directories(lane_node PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(lane_node ${OpenCV_LIBS})
 target_link_libraries(hsv_tuner_node ${OpenCV_LIBS})
+
+target_link_libraries(lane_node nlohmann_json::nlohmann_json)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

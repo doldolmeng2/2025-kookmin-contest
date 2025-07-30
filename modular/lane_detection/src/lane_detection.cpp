@@ -4,6 +4,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include "std_msgs/msg/float32.hpp"
+#include "parameter_loader.hpp"
 
 using namespace std;
 using namespace cv;
@@ -29,7 +30,9 @@ constexpr int roi_bottom_width = static_cast<int>(FRAME_WIDTH * 3);
 
 class LaneDetector : public rclcpp::Node {
 public:
-    LaneDetector() : Node("lane_detector_node") {
+    LaneDetector(const Config& config) 
+    : Node("lane_detector_node"), config_(config) {
+        RCLCPP_INFO(this->get_logger(), "yellow_min_h: %d", config_.yellow_min_h);
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             "/image_raw", 10,
             std::bind(&LaneDetector::imageCallback, this, std::placeholders::_1)
@@ -244,6 +247,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr offset_pub_;
     LaneMode lane_mode_;
+    Config config_;
 
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         // ROS 이미지 → OpenCV Mat
@@ -335,8 +339,8 @@ private:
         // waitKey(1);
 
         // 3. 흰색/노란색 마스킹 (HSV 범위 조정 필요)
-        inRange(hsv, Scalar(20, 70, 180), Scalar(50, 255, 255), yellow_mask);
-        inRange(hsv, Scalar(50, 0, 180), Scalar(140, 60, 255), white_mask);
+        inRange(hsv, Scalar(config_.yellow_min_h, config_.yellow_min_s, config_.yellow_min_v), Scalar(config_.yellow_max_h, config_.yellow_max_s, config_.yellow_max_v), yellow_mask);
+        inRange(hsv, Scalar(config_.white_min_h, config_.white_min_s, config_.white_min_v), Scalar(config_.white_max_h, config_.white_max_s, config_.white_max_v), white_mask);
         // imshow("Yellow Mask (before Edge)", yellow_mask);
         // waitKey(1); 
         // imshow("White Mask (before Edge)", white_mask);
@@ -378,7 +382,10 @@ private:
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<LaneDetector>();
+    // json 경로는 개발 환경에 맞게 변경하시면 됩니다.
+    Config config = load_config("/home/helloosy/xycar_ws/src/orda/2025-kookmin-contest/modular/lane_detection/lane_detection_parameter.json"); 
+
+    auto node = std::make_shared<LaneDetector>(config);
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;
