@@ -174,37 +174,38 @@ public:
         return Vec3f(coeffs.at<float>(0), coeffs.at<float>(1), coeffs.at<float>(2));
     }
 
-    float calculateOffset(const LaneCurves& curves, int img_width, int img_height, LaneMode mode) {
-        // y값을 맨 아래 (카메라에 가까운 위치) 기준으로 계산
-        float y_eval = static_cast<float>(img_height - 1);
+    float calculateOffsetByIntersection(const Vec3f& curve1, const Vec3f& curve2, int img_width) {
+        float a = curve1[0] - curve2[0];
+        float b = curve1[1] - curve2[1];
+        float c = curve1[2] - curve2[2];
 
-        // 각 차선의 x좌표 계산: x = a*y^2 + b*y + c
-        auto eval = [&](const Vec3f& coeffs) {
-            return coeffs[0]*y_eval*y_eval + coeffs[1]*y_eval + coeffs[2];
-        };
+        float discriminant = b * b - 4 * a * c;
 
-        float left_x = eval(curves.left_fit);
-        float right_x = eval(curves.right_fit);
-        float center_x = eval(curves.center_fit);  // 중간 노란선
-
-        float lane_center_x;
-
-        if (mode == LaneMode::ONE_LANE) {
-            lane_center_x = (left_x + center_x) / 2.0f;
-        } else {
-            lane_center_x = (center_x + right_x) / 2.0f;
+        // ※ 현재는 차선이 항상 검출된다고 가정되어 있어서 교점이 아예 없는 경우(<0)는 거의 발생하지 않음
+        // 👉 b² - 4ac 판별식을 이용한 교점 개수 판단:
+        // 1) 판별식 > 0  → 교점 2개 존재 → 더 위쪽에 있는 교점 사용 (min(y1, y2))
+        // 2) 판별식 == 0 → 교점 1개 존재 → 그 y값 그대로 사용
+        // 3) 판별식 < 0  → 교점 없음    → 추정 fallback 처리 필요 (현재는 거의 발생 안함)
+        //   ↪ 곡선2가 곡선1을 단순 평행이동한 경우에 해당함 (즉, 곡률 a값과 기울기 b값이 같고 절편 c만 다른 경우)
+        
+        if (discriminant < 0.0f) {
+            // 교점 없음 (곡선이 교차하지 않음), fallback
+            return 0.0f;
         }
 
-        // 이미지 중앙과의 차이
+        float sqrt_disc = std::sqrt(discriminant);
+        float y1 = (-b + sqrt_disc) / (2 * a);
+        float y2 = (-b - sqrt_disc) / (2 * a);
+
+        float y_eval = std::min(y1, y2);  // ✅ 더 위쪽 (교점 위치) 선택
+
+        // 해당 y 위치에서의 x 좌표 계산 (곡선1과 곡선2는 같으므로 아무거나 사용 가능)
+        float x = curve1[0]*y_eval*y_eval + curve1[1]*y_eval + curve1[2];
+
         float image_center_x = static_cast<float>(img_width) / 2.0f;
-        float offset = lane_center_x - image_center_x;
-
-        // 차선 곡률도 고려해서 강화된 offset 계산 (선택사항)
-        float curvature_factor = std::abs(curves.center_fit[0]);  // 곡률 계수 a값 (곡선일수록 큼)
-        float adjusted_offset = offset * (1.0f + 5.0f * curvature_factor);  // 조정 인자 5.0은 튜닝 가능
-
-        return adjusted_offset;  // 최종 반환
+        return x - image_center_x;
     }
+
     
     void drawLaneCurve(Mat& img, const Vec3f& coeffs, const Scalar& color) {
         std::vector<Point> curve_points;
@@ -252,8 +253,13 @@ private:
 
         // offset 계산
         lane_mode_ = LaneMode::ONE_LANE; // 이거는 나중에 외부에서 받아야 함.
-        float offset = calculateOffset(curves, resized_img.cols, resized_img.rows, lane_mode_);
-        
+        float offset;
+        if (lane_mode_ == LaneMode::ONE_LANE) {
+            offset = calculateOffsetByIntersection(curves.left_fit, curves.center_fit, resized_img.cols);
+        } else {
+            offset = calculateOffsetByIntersection(curves.center_fit, curves.right_fit, resized_img.cols);
+        }
+
         // offset 퍼블리시
         std_msgs::msg::Float32 offset_msg;
         offset_msg.data = offset;
