@@ -3,6 +3,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
+#include "std_msgs/msg/float32.hpp"
 
 using namespace std;
 using namespace cv;
@@ -33,6 +34,7 @@ public:
             "/image_raw", 10,
             std::bind(&LaneDetector::imageCallback, this, std::placeholders::_1)
         );
+        offset_pub_ = this->create_publisher<std_msgs::msg::Float32>("/lane_offset", 10);
     }
 
     Mat applyTrapezoidROI(const Mat& frame, int top_width, int bottom_width, int height) {
@@ -220,6 +222,8 @@ public:
 
 private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr offset_pub_;
+    LaneMode lane_mode_;
 
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         // ROS 이미지 → OpenCV Mat
@@ -246,8 +250,14 @@ private:
         drawLaneCurve(resized_img, curves.center_fit, Scalar(0, 255, 0));  // 중앙 노란선: 초록
         drawLaneCurve(resized_img, curves.right_fit, Scalar(0, 0, 255));   // 오른쪽 차선: 빨강
 
-        // offset 계산 (2차선 기준으로 예시)
-        float offset = calculateOffset(curves, resized_img.cols, resized_img.rows, LaneMode::TWO_LANE);
+        // offset 계산
+        lane_mode_ = LaneMode::ONE_LANE; // 이거는 나중에 외부에서 받아야 함.
+        float offset = calculateOffset(curves, resized_img.cols, resized_img.rows, lane_mode_);
+        
+        // offset 퍼블리시
+        std_msgs::msg::Float32 offset_msg;
+        offset_msg.data = offset;
+        offset_pub_->publish(offset_msg);
 
         // 슬라이더 이미지 생성 (길이: FRAME_WIDTH, 높이: 50)
         int slider_width = FRAME_WIDTH;
@@ -261,8 +271,19 @@ private:
         int center_x = slider_width / 2;
         int dot_x = static_cast<int>(center_x + offset);  // offset을 그대로 픽셀로 사용
         dot_x = std::max(0, std::min(slider_width - 1, dot_x));  // 이미지 경계 안으로 클램프
-
         circle(slider, Point(dot_x, slider_height/2), 6, Scalar(0, 0, 255), -1);
+
+        // 🟡 텍스트 추가: 현재 차선 모드 + offset 값
+        std::string mode_str = (lane_mode_ == LaneMode::ONE_LANE) ? "Mode: 1-Lane" : "Mode: 2-Lane";
+        std::string offset_str = "Offset: " + std::to_string(offset);
+        
+        // 텍스트 출력 위치 (왼쪽 위에 나란히 표시)
+        int font_face = cv::FONT_HERSHEY_SIMPLEX;
+        double font_scale = 0.6;
+        int thickness = 1;
+
+        putText(slider, mode_str, Point(10, 20), font_face, font_scale, Scalar(200, 200, 200), thickness);
+        putText(slider, offset_str, Point(10, 40), font_face, font_scale, Scalar(200, 200, 200), thickness);
 
         // 디버그 출력
         // 위쪽에 offset 슬라이더를 그리고 아래에 영상 보여주기
