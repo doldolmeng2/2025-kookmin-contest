@@ -8,10 +8,10 @@
 using namespace std;
 using namespace cv;
 
-struct LaneCurves {
-    Vec3f left_fit;
-    Vec3f right_fit;
-    Vec3f center_fit;
+struct LaneLines {
+    Vec2f left_fit;
+    Vec2f right_fit;
+    Vec2f center_fit;
 };
 
 enum class LaneMode {
@@ -131,7 +131,7 @@ public:
     }
 
 
-    LaneCurves detectLanes(const Mat& white_mask, const Mat& yellow_mask, const Mat& resized_img) {
+    LaneLines detectLanes(const Mat& white_mask, const Mat& yellow_mask, const Mat& resized_img) {
         Mat debug_img = resized_img.clone();
         // 흰색 왼쪽 차선
         auto white_left_points = detectLaneFromMask(white_mask, "white", true, debug_img);
@@ -143,9 +143,9 @@ public:
         auto yellow_points = detectLaneFromMask(yellow_mask, "yellow", false, debug_img);
 
         // 3. 피팅
-        Vec3f left_fit = fitPolynomial(white_left_points);
-        Vec3f right_fit = fitPolynomial(white_right_points);
-        Vec3f center_fit = fitPolynomial(yellow_points);
+        Vec2f left_fit = fitLineLinear(white_left_points);
+        Vec2f right_fit = fitLineLinear(white_right_points);
+        Vec2f center_fit = fitLineLinear(yellow_points);
 
         imshow("Sliding Windows", debug_img);
         waitKey(1);
@@ -153,72 +153,91 @@ public:
         return { left_fit, right_fit, center_fit };
     }
 
-    // 2차 다항식 피팅 (ax² + bx + c)
-    Vec3f fitPolynomial(const vector<Point>& points) {
-        if (points.size() < 3) return Vec3f(0, 0, 0); // 충분한 점이 없으면 기본값
+    // // 2차 다항식 피팅 (ax² + bx + c)
+    // Vec3f fitPolynomial(const vector<Point>& points) {
+    //     if (points.size() < 3) return Vec3f(0, 0, 0); // 충분한 점이 없으면 기본값
 
-        Mat X(points.size(), 3, CV_32F);
+    //     Mat X(points.size(), 3, CV_32F);
+    //     Mat Y(points.size(), 1, CV_32F);
+
+    //     for (size_t i = 0; i < points.size(); ++i) {
+    //         float y = static_cast<float>(points[i].y);
+    //         X.at<float>(i, 0) = y * y;
+    //         X.at<float>(i, 1) = y;
+    //         X.at<float>(i, 2) = 1;
+    //         Y.at<float>(i, 0) = static_cast<float>(points[i].x);
+    //     }
+
+    //     Mat coeffs;
+    //     solve(X, Y, coeffs, DECOMP_SVD);
+
+    //     return Vec3f(coeffs.at<float>(0), coeffs.at<float>(1), coeffs.at<float>(2));
+    // }
+
+    Vec2f fitLineLinear(const std::vector<Point>& points) {
+        if (points.size() < 2) return Vec2f(0, 0); // 최소 2점 필요
+
+        Mat X(points.size(), 2, CV_32F);
         Mat Y(points.size(), 1, CV_32F);
 
         for (size_t i = 0; i < points.size(); ++i) {
             float y = static_cast<float>(points[i].y);
-            X.at<float>(i, 0) = y * y;
-            X.at<float>(i, 1) = y;
-            X.at<float>(i, 2) = 1;
+            X.at<float>(i, 0) = y;
+            X.at<float>(i, 1) = 1;
             Y.at<float>(i, 0) = static_cast<float>(points[i].x);
         }
 
         Mat coeffs;
-        solve(X, Y, coeffs, DECOMP_SVD);
+        solve(X, Y, coeffs, DECOMP_SVD);  // [m, b] 반환
 
-        return Vec3f(coeffs.at<float>(0), coeffs.at<float>(1), coeffs.at<float>(2));
+        return Vec2f(coeffs.at<float>(0), coeffs.at<float>(1)); // m, b
     }
 
-    float calculateOffsetByIntersection(const Vec3f& curve1, const Vec3f& curve2, int img_width) {
-        float a = curve1[0] - curve2[0];
-        float b = curve1[1] - curve2[1];
-        float c = curve1[2] - curve2[2];
 
-        float discriminant = b * b - 4 * a * c;
+    float calculateOffsetByIntersection(const Vec2f& line1, const Vec2f& line2, int img_width) {
+        float m1 = line1[0], b1 = line1[1];
+        float m2 = line2[0], b2 = line2[1];
 
-        // ※ 현재는 차선이 항상 검출된다고 가정되어 있어서 교점이 아예 없는 경우(<0)는 거의 발생하지 않음
-        // 👉 b² - 4ac 판별식을 이용한 교점 개수 판단:
-        // 1) 판별식 > 0  → 교점 2개 존재 → 더 위쪽에 있는 교점 사용 (min(y1, y2))
-        // 2) 판별식 == 0 → 교점 1개 존재 → 그 y값 그대로 사용
-        // 3) 판별식 < 0  → 교점 없음    → 추정 fallback 처리 필요 (현재는 거의 발생 안함)
-        //   ↪ 곡선2가 곡선1을 단순 평행이동한 경우에 해당함 (즉, 곡률 a값과 기울기 b값이 같고 절편 c만 다른 경우)
-        
-        if (discriminant < 0.0f) {
-            // 교점 없음 (곡선이 교차하지 않음), fallback
+        if (std::abs(m1 - m2) < 1e-5f) {
+            // 기울기가 같아서 교차하지 않음 (평행)
             return 0.0f;
         }
 
-        float sqrt_disc = std::sqrt(discriminant);
-        float y1 = (-b + sqrt_disc) / (2 * a);
-        float y2 = (-b - sqrt_disc) / (2 * a);
-
-        float y_eval = std::min(y1, y2);  // ✅ 더 위쪽 (교점 위치) 선택
-
-        // 해당 y 위치에서의 x 좌표 계산 (곡선1과 곡선2는 같으므로 아무거나 사용 가능)
-        float x = curve1[0]*y_eval*y_eval + curve1[1]*y_eval + curve1[2];
+        float y = (b2 - b1) / (m1 - m2);
+        float x = m1 * y + b1;
 
         float image_center_x = static_cast<float>(img_width) / 2.0f;
         return x - image_center_x;
     }
 
     
-    void drawLaneCurve(Mat& img, const Vec3f& coeffs, const Scalar& color) {
-        std::vector<Point> curve_points;
-        for (int y = 0; y < img.rows; ++y) {
-            float x = coeffs[0]*y*y + coeffs[1]*y + coeffs[2];
-            if (x >= 0 && x < img.cols) {
-                curve_points.emplace_back(static_cast<int>(x), y);
-            }
-        }
-        for (size_t i = 1; i < curve_points.size(); ++i) {
-            line(img, curve_points[i - 1], curve_points[i], color, 2);
-        }
+    // void drawLaneCurve(Mat& img, const Vec3f& coeffs, const Scalar& color) {
+    //     std::vector<Point> curve_points;
+    //     for (int y = 0; y < img.rows; ++y) {
+    //         float x = coeffs[0]*y*y + coeffs[1]*y + coeffs[2];
+    //         if (x >= 0 && x < img.cols) {
+    //             curve_points.emplace_back(static_cast<int>(x), y);
+    //         }
+    //     }
+    //     for (size_t i = 1; i < curve_points.size(); ++i) {
+    //         line(img, curve_points[i - 1], curve_points[i], color, 2);
+    //     }
+    // }
+
+    void drawLaneLine(Mat& img, const Vec2f& coeffs, const Scalar& color) {
+        float m = coeffs[0];
+        float b = coeffs[1];
+        Point pt1, pt2;
+
+        pt1.y = 0;
+        pt1.x = static_cast<int>(m * pt1.y + b);
+
+        pt2.y = img.rows;
+        pt2.x = static_cast<int>(m * pt2.y + b);
+
+        line(img, pt1, pt2, color, 2);
     }
+
 
 
 private:
@@ -244,20 +263,20 @@ private:
         auto [white_mask, yellow_mask] = preprocessImage(resized_img);
 
         // 차선 검출
-        LaneCurves curves = detectLanes(white_mask, yellow_mask, resized_img);
+        LaneLines lines = detectLanes(white_mask, yellow_mask, resized_img);
 
         // 차선 곡선 그리기
-        drawLaneCurve(resized_img, curves.left_fit, Scalar(255, 0, 0));    // 왼쪽 차선: 파랑
-        drawLaneCurve(resized_img, curves.center_fit, Scalar(0, 255, 0));  // 중앙 노란선: 초록
-        drawLaneCurve(resized_img, curves.right_fit, Scalar(0, 0, 255));   // 오른쪽 차선: 빨강
+        drawLaneLine(resized_img, lines.left_fit, Scalar(255, 0, 0));    // 왼쪽 차선: 파랑
+        drawLaneLine(resized_img, lines.center_fit, Scalar(0, 255, 0));  // 중앙 노란선: 초록
+        drawLaneLine(resized_img, lines.right_fit, Scalar(0, 0, 255));   // 오른쪽 차선: 빨강
 
         // offset 계산
         lane_mode_ = LaneMode::ONE_LANE; // 이거는 나중에 외부에서 받아야 함.
         float offset;
         if (lane_mode_ == LaneMode::ONE_LANE) {
-            offset = calculateOffsetByIntersection(curves.left_fit, curves.center_fit, resized_img.cols);
+            offset = calculateOffsetByIntersection(lines.left_fit, lines.center_fit, resized_img.cols);
         } else {
-            offset = calculateOffsetByIntersection(curves.center_fit, curves.right_fit, resized_img.cols);
+            offset = calculateOffsetByIntersection(lines.center_fit, lines.right_fit, resized_img.cols);
         }
 
         // offset 퍼블리시
