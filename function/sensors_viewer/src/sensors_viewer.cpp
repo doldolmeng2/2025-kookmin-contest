@@ -13,7 +13,7 @@ public:
     {
         // 구독자 초기화
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/image_raw", 10,
+            "/resized_image", 10,
             std::bind(&SensorsViewerNode::imageCallback, this, std::placeholders::_1));
 
         scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
