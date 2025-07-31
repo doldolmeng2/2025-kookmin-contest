@@ -11,12 +11,19 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # 실행 파일 빌드
-add_executable(lane_node src/lane_detection.cpp)
+add_executable(lane_node
+  src/lane_detection.cpp
+  src/parameter_loader.cpp
+)
+add_executable(hsv_tuner_node src/hsv_tuner.cpp)
 
 # ROS2 의존성 연결
-ament_target_dependencies(lane_node rclcpp std_msgs sensor_msgs)
+ament_target_dependencies(lane_node rclcpp std_msgs sensor_msgs cv_bridge)
+ament_target_dependencies(hsv_tuner_node rclcpp sensor_msgs cv_bridge)
 
 # include 경로 추가
 target_include_directories(lane_node PUBLIC
@@ -27,10 +34,15 @@ target_include_directories(lane_node PUBLIC
 install(TARGETS
   lane_node
   DESTINATION lib/${PROJECT_NAME})
+install(TARGETS hsv_tuner_node
+  DESTINATION lib/${PROJECT_NAME})
 
 # OpenCV 연결
 target_include_directories(lane_node PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(lane_node ${OpenCV_LIBS})
+target_link_libraries(hsv_tuner_node ${OpenCV_LIBS})
+
+target_link_libraries(lane_node nlohmann_json::nlohmann_json)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
