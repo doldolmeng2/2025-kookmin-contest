@@ -10,13 +10,15 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(xycar_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # 실행 파일 빌드
 add_executable(main_node src/main.cpp)
 
 # ROS2 의존성 연결
-ament_target_dependencies(main_node rclcpp std_msgs sensor_msgs)
+ament_target_dependencies(main_node rclcpp std_msgs sensor_msgs cv_bridge xycar_msgs)
 
 # include 경로 추가
 target_include_directories(main_node PUBLIC
