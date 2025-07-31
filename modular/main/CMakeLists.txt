@@ -23,7 +23,9 @@ ament_target_dependencies(main_node rclcpp std_msgs sensor_msgs cv_bridge xycar_
 # include 경로 추가
 target_include_directories(main_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+  $<INSTALL_INTERFACE:include>
+  ${CMAKE_INSTALL_PREFIX}/include/xycar_msgs
+)
 
 # 실행 파일 설치
 install(TARGETS
