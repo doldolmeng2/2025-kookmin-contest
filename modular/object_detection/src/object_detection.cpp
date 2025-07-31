@@ -89,7 +89,7 @@ private:
         std::vector<float> confidences; // 각 객체의 신뢰도
         std::vector<int> class_ids;     // 객체의 클래스 ID
 
-        for (int i = 0; i < outputs.size(); ++i) {
+        for (size_t i = 0; i < outputs.size(); ++i) {
             float* data = (float*)outputs[i].data;
             for (int j = 0; j < outputs[i].rows; ++j, data += outputs[i].cols) {
                 float conf = data[4];  // 객체 신뢰도

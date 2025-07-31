@@ -3,7 +3,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
-#include "std_msgs/msg/float32.hpp"
+#include "std_msgs/msg/int16.hpp"
 #include "parameter_loader.hpp"
 
 using namespace std;
@@ -30,7 +30,7 @@ public:
             "/image_raw", 10,
             std::bind(&LaneDetector::imageCallback, this, std::placeholders::_1)
         );
-        offset_pub_ = this->create_publisher<std_msgs::msg::Float32>("/lane_offset", 10);
+        offset_pub_ = this->create_publisher<std_msgs::msg::Int16>("/lane_offset", 10);
     }
 
     Mat applyTrapezoidROI(const Mat& frame, int top_width, int bottom_width, int height) {
@@ -238,7 +238,7 @@ public:
 
 private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
-    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr offset_pub_;
+    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr offset_pub_;
     LaneMode lane_mode_;
     Config config_;
     int frame_width_;
@@ -282,8 +282,8 @@ private:
         }
 
         // offset 퍼블리시
-        std_msgs::msg::Float32 offset_msg;
-        offset_msg.data = offset;
+        std_msgs::msg::Int16 offset_msg;
+        offset_msg.data = static_cast<int16_t>(offset);
         offset_pub_->publish(offset_msg);
 
         // 슬라이더 이미지 생성 (길이: frame_width_, 높이: 50)

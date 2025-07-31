@@ -11,12 +11,13 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 # 실행 파일 빌드
 add_executable(object_node src/object_detection.cpp)
 
 # ROS2 의존성 연결
-ament_target_dependencies(object_node rclcpp std_msgs sensor_msgs)
+ament_target_dependencies(object_node rclcpp std_msgs sensor_msgs cv_bridge)
 
 # include 경로 추가
 target_include_directories(object_node PUBLIC
