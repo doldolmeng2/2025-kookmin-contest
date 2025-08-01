@@ -2,24 +2,29 @@
 
 from collections import namedtuple
 
-# 모드 상수
-TRAFFIC_WAIT      = 0
-RUBBERCONE_DRIVE  = 1
-RUBBERCONE_END    = 2
-LANE_DRIVE        = 3
-OBSTACLE_APPROACH = 4
-CHANGE_LANE       = 5
+# 모드 상수 정의
+# 각 주행 모드를 숫자 상수로 지정
+TRAFFIC_WAIT      = 0  # 신호 대기 모드
+RUBBERCONE_DRIVE  = 1  # 라바콘 주행 모드
+RUBBERCONE_END    = 2  # 라바콘 종료 모드
+LANE_DRIVE        = 3  # 차선 주행 모드
+OBSTACLE_APPROACH = 4  # 장애물 접근 모드
+CHANGE_LANE       = 5  # 차선 변경 모드
 
 # ——————————————————————————————————————————————————————————————
-# 파라미터 정의 (여기서 조정)
+# 파라미터 정의 구역
+# 여기서 제어 알고리즘에 사용될 파라미터를 조정하세요.
+
 # PD 제어 파라미터: mode → (kp, kd, alpha)
+# kp: 비례 이득, kd: 미분 이득, alpha: 비선형 보정 계수
 PD_PARAMS = {
-    RUBBERCONE_DRIVE: (1.2, 0.02, 0.01),
-    LANE_DRIVE:       (1.0, 0.01, 0.0),
-    CHANGE_LANE:      (1.0, 0.01, 0.0),
+    RUBBERCONE_DRIVE: (0.1, 0.0, 0.0),
+    LANE_DRIVE:       (0.1, 0.0, 0.0),
+    CHANGE_LANE:      (0.1, 0.0, 0.0),
 }
 
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
+# max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
     RUBBERCONE_DRIVE: (40.0, 30.0, 0.1),
     LANE_DRIVE:       (50.0, 30.0, 0.1),
@@ -27,12 +32,14 @@ SPEED_PARAMS = {
 }
 
 # 라바콘 종료 시 고정 파라미터
+# angle: 종료 직후 조향 각도, speed: 종료 직후 속도
 RUBBERCONE_END_PARAMS = {
     'angle': 0.0,
     'speed': 20.0,
 }
 
 # 장애물 접근 모드 파라미터
+# kp, ki: PI 제어 이득, target_distance: 목표 거리, base_speed: 기본 속도
 OBSTACLE_PARAMS = {
     'kp':              0.5,
     'ki':              0.1,
@@ -41,17 +48,24 @@ OBSTACLE_PARAMS = {
 }
 # ——————————————————————————————————————————————————————————————
 
-# 내부용 namedtuple
+# 내부용 namedtuple 정의
+# SpeedParams: 속도 제어 파라미터 구조체
+# PDParams:   PD 제어 파라미터 구조체
 SpeedParams = namedtuple('SpeedParams', ['max_speed', 'min_speed', 'scale_factor'])
 PDParams    = namedtuple('PDParams',    ['kp', 'kd', 'alpha'])
 
 class Controller:
     def __init__(self):
-        # 내부 상태 초기화
-        self.angle             = 0.0
-        self.speed             = 0.0
-        self.prev_offset       = 0.0
-        self.obstacle_integral = 0.0
+        """
+        Controller 객체 초기화
+        - 내부 상태 초기화
+        - 파라미터 딕셔너리를 namedtuple로 변환
+        """
+        # 제어 상태 변수
+        self.angle             = 0.0   # 현재 조향 각도
+        self.speed             = 0.0   # 현재 속도
+        self.prev_offset       = 0.0   # 이전 오프셋(차선 위치)
+        self.obstacle_integral = 0.0   # 장애물 PI 제어 적분 값
         self.prev_mode         = TRAFFIC_WAIT
 
         # 파라미터 구조체 변환
@@ -66,42 +80,58 @@ class Controller:
         self.rubbercone_end_angle = RUBBERCONE_END_PARAMS['angle']
         self.rubbercone_end_speed = RUBBERCONE_END_PARAMS['speed']
 
+        # 장애물 접근 파라미터
         self.ob_kp              = OBSTACLE_PARAMS['kp']
         self.ob_ki              = OBSTACLE_PARAMS['ki']
         self.ob_target_distance = OBSTACLE_PARAMS['target_distance']
         self.ob_base_speed      = OBSTACLE_PARAMS['base_speed']
 
-    def update(self, mode: int, offset: float, obstacle_dist: float):
-        # 모드 변경 시 상태 리셋
+    def update(self, mode, offset: int, obstacle_dist: int):
+        """
+        메인 업데이트 함수
+        - 모드 전환 시 내부 상태 리셋
+        - 각 모드에 따라 조향과 속도를 계산
+        """
+        # 모드 변경 감지 및 리셋
         if mode != self.prev_mode:
             self.reset()
             self.prev_mode = mode
 
-        # 모드별 제어
+        # 모드별 제어 로직
         if mode == TRAFFIC_WAIT:
+            # 신호 대기 시 정지
             self.angle, self.speed = 0.0, 0.0
 
         elif mode in (RUBBERCONE_DRIVE, LANE_DRIVE, CHANGE_LANE):
-            # PD 조향 + 각도 기반 속도
+            # PD 제어로 조향 계산 후 속도 제어
             self.angle = self._compute_steering_pd(mode, offset)
             params     = self.speed_params.get(mode)
             self.speed = self._compute_speed_from_angle(self.angle, params) if params else 0.5
 
         elif mode == RUBBERCONE_END:
+            # 라바콘 종료 후 고정 파라미터 사용
             self.angle, self.speed = self.rubbercone_end_angle, self.rubbercone_end_speed
 
         elif mode == OBSTACLE_APPROACH:
-            # 차선 주행 조향 + PI 장애물 속도
+            # 장애물 접근: 차선 주행 조향 + PI 제어 속도
             self.angle = self._compute_steering_pd(LANE_DRIVE, offset)
             self.speed = self._compute_obstacle_speed(obstacle_dist) if obstacle_dist > 0 else 0.0
 
         else:
+            # 정의되지 않은 모드에서는 안전 정지
             self.angle, self.speed = 0.0, 0.0
 
-    def _compute_steering_pd(self, mode: int, offset: float) -> float:
+    def _compute_steering_pd(self, mode: int, offset: int) -> float:
+        """
+        PD 제어를 이용해 조향 각도 계산
+        - error: 현재 오프셋
+        - diff:  이전 오프셋 차이
+        - effective_kp: 비선형 보정 적용된 KP
+        """
         params = self.pd_params.get(mode)
         if not params:
             return 0.0
+
         error = float(offset)
         diff  = error - self.prev_offset
         self.prev_offset = error
@@ -110,25 +140,42 @@ class Controller:
         return effective_kp * error + params.kd * diff
 
     def _compute_speed_from_angle(self, angle: float, params: SpeedParams) -> float:
+        """
+        조향 각도에 따른 속도 계산
+        - 각도가 클수록 속도 감소
+        - min_speed 이하로 떨어지지 않도록 제한
+        """
         speed = params.max_speed - abs(angle) * params.scale_factor
         return max(params.min_speed, speed)
 
-    def _compute_obstacle_speed(self, current_dist: float) -> float:
+    def _compute_obstacle_speed(self, current_dist: int) -> float:
+        """
+        장애물 접근 모드에서 PI 제어로 속도 조정
+        - error: 현재 거리 - 목표 거리
+        - integral: 누적 error
+        - adjustment: kp*error + ki*integral
+        - 차선 주행 시의 최대 속도를 상한으로 사용
+        """
         error = current_dist - self.ob_target_distance
         self.obstacle_integral += error
         adjustment = self.ob_kp * error + self.ob_ki * self.obstacle_integral
 
-        # 차선 주행 속도 제한
         max_lane_speed = self._compute_speed_from_angle(self.angle, self.speed_params[LANE_DRIVE])
         speed = self.ob_base_speed + adjustment
         return min(max(speed, 0.0), max_lane_speed)
 
     def reset(self):
+        """
+        내부 제어 변수 초기화
+        - 오프셋 적분 및 이전 오프셋 초기화
+        """
         self.prev_offset       = 0.0
         self.obstacle_integral = 0.0
 
     def get_angle(self) -> float:
+        """현재 계산된 조향 각도 반환"""
         return self.angle
 
     def get_speed(self) -> float:
+        """현재 계산된 속도 반환"""
         return self.speed

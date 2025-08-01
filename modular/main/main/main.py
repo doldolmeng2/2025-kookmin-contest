@@ -32,15 +32,19 @@ class MainNode(Node):
         self.create_subscription(Int16, 'lane_offset',       self.lane_offset_callback, 10)
         self.create_subscription(Int16, 'object_info',        self.object_info_callback, 10)
         self.create_subscription(Bool,    'traffic_detection',self.traffic_callback, 10)
+        self.create_subscription(Int16, 'object_distance', self.object_distance_callback, 10)
 
         # Variables
         self.lane = 0
         self.rubbercone_offset = 0
         self.end_flag = 0
         self.lane_offset = 0
-        self.object_dist = -1
+        self.object_info = -1 # -1: not detected, 0: left, 1: right
+        self.object_dist = 0 
         self.traffic_green = False
         self.lane_change_time = None
+        self.rubbercone_end_time = None
+        self.into_lane_timer = 2.0
 
         # 20 ms timer to run control cycle at ~50 Hz
         self.create_timer(0.02, self.control_cycle)
@@ -54,30 +58,44 @@ class MainNode(Node):
         self.lane_offset = msg.data
 
     def object_info_callback(self, msg):
-        self.object_dist = msg.data
+        self.object_info = msg.data # object lane information -1:not detected  0:left 1 :right
 
     def traffic_callback(self, msg):
-        self.traffic_green = msg.data
+        self.traffic_green = msg.data # True if traffic light is green
+
+    def object_distance_callback(self, msg):
+        self.object_dist = msg.data # distance to the nearest object
 
     def control_cycle(self):
+        now = self.get_clock().now()
+        if self.rubbercone_end_time is not None:
+            elapsed = (now - self.rubbercone_end_time).nanoseconds / 1e9
         # 모드 전환
         if self.mode == TRAFFIC_WAIT and self.traffic_green:
             self.mode = RUBBERCONE_DRIVE
+
         elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1:
             self.mode = RUBBERCONE_END
-        elif self.mode == RUBBERCONE_END:
+            self.rubbercone_end_time = now
+
+        elif self.mode == RUBBERCONE_END and elapsed > self.into_lane_timer:
             self.mode = LANE_DRIVE
-        elif self.mode == LANE_DRIVE and self.object_dist > 0:
+
+        elif self.mode == LANE_DRIVE and self.object_dist != 0: # object_dist need reset
             self.mode = OBSTACLE_APPROACH
 
-        now = self.get_clock().now()
-        if self.object_dist == -2 and self.mode == LANE_DRIVE:
-            self.mode            = CHANGE_LANE
-            self.lane_change_time = now
-            self.lane            = 1 - self.lane
-        elif self.mode == CHANGE_LANE and (now - self.lane_change_time).nanoseconds / 1e9 > 3.0:
-            self.mode = LANE_DRIVE
+        elif self.mode == OBSTACLE_APPROACH and self.object_info != -1: # object_info is detected
+            if self.lane == self.object_info :  # same side 
+                self.lane = 1 - self.object_info # change lane
+                self.mode = CHANGE_LANE
+            else:                               # different side
+                self.mode = LANE_DRIVE
+            self.object_dist = 0 # reset object distance
+            self.object_info = -1 # reset object info
 
+        elif self.mode == CHANGE_LANE and self.is_change_end():
+            self.mode = LANE_DRIVE
+            
         # 오프셋 선택
         offset = self.rubbercone_offset if self.mode == RUBBERCONE_DRIVE else self.lane_offset
 
@@ -96,6 +114,9 @@ class MainNode(Node):
         mode_msg = Int32MultiArray()
         mode_msg.data = [self.mode, self.lane]
         self.mode_pub.publish(mode_msg)
+
+    def is_change_end(self):
+        return True if abs(self.lane_offset) < 30 else False
 
 
 def main(args=None):
