@@ -145,9 +145,9 @@ class MainNode(Node):
 
         # 3) 화면에 그리기
         y0, dy = 30, 30
-        for i, text in enumerate([mode_str, lane_str, offset_str,
+        for i, text in enumerate([mode_str, angle_str, speed_str, offset_str, lane_str,
                                   endflag_str, objinfo_str,
-                                  objdist_str, angle_str, speed_str]):
+                                  objdist_str]):
             cv2.putText(
                 log_img, text,
                 (10, y0 + i*dy),
