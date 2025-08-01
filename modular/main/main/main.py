@@ -3,6 +3,8 @@ from rclpy.node import Node
 from std_msgs.msg import Int32MultiArray, Int16, Bool
 from xycar_msgs.msg import XycarMotor
 from control import Controller
+import cv2
+import numpy as np
 
 # 모드 상수 정의
 TRAFFIC_WAIT = 0
@@ -42,7 +44,6 @@ class MainNode(Node):
         self.object_info = -1 # -1: not detected, 0: left, 1: right
         self.object_dist = 0 
         self.traffic_green = False
-        self.lane_change_time = None
         self.rubbercone_end_time = None
         self.into_lane_timer = 2.0
 
@@ -114,6 +115,50 @@ class MainNode(Node):
         mode_msg = Int32MultiArray()
         mode_msg.data = [self.mode, self.lane]
         self.mode_pub.publish(mode_msg)
+
+        # log: 화면에 상태 텍스트 그리기
+        # 1) 빈 화면 초기화
+        log_img = np.zeros((300, 600, 3), dtype=np.uint8)
+
+        # 2) 변수 문자열 변환
+        mode_map = {
+            TRAFFIC_WAIT:      'TRAFFIC_WAIT',
+            RUBBERCONE_DRIVE:  'RUBBERCONE_DRIVE',
+            RUBBERCONE_END:    'RUBBERCONE_END',
+            LANE_DRIVE:        'LANE_DRIVE',
+            OBSTACLE_APPROACH: 'OBSTACLE_APPROACH',
+            CHANGE_LANE:       'CHANGE_LANE',
+        }
+        mode_str        = f"현재 모드: {mode_map.get(self.mode, 'UNKNOWN')}"
+        lane_str        = f"{'1차선 주행' if self.lane==0 else '2차선 주행'}"
+        endflag_str     = '라바콘 종료' if self.end_flag==1 else '라바콘 종료 전'
+        objinfo_map     = {
+            -1: '미감지',
+             0: '장애물 1차선 감지',
+             1: '장애물 2차선 감지',
+        }
+        objinfo_str     = objinfo_map.get(self.object_info, 'UNKNOWN')
+        offset_str      = f"Offset: {offset}"
+        objdist_str     = f"Object dist: {self.object_dist}"
+        angle_str       = f"Angle: {angle:.1f}"
+        speed_str       = f"Speed: {speed:.1f}"
+
+        # 3) 화면에 그리기
+        y0, dy = 30, 30
+        for i, text in enumerate([mode_str, lane_str, offset_str,
+                                  endflag_str, objinfo_str,
+                                  objdist_str, angle_str, speed_str]):
+            cv2.putText(
+                log_img, text,
+                (10, y0 + i*dy),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, (255,255,255), 2
+            )
+
+        # 4) 보여주기 및 리셋
+        cv2.imshow('Status', log_img)
+        cv2.waitKey(1)
+
 
     def is_change_end(self):
         return True if abs(self.lane_offset) < 30 else False
