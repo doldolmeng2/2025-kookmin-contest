@@ -1,8 +1,8 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32MultiArray, Int16, Bool
-from xycar_msgs.msg import XycarMotor
-from control import Controller
+# from xycar_msgs.msg import XycarMotor
+from main.control import Controller
 import cv2
 import numpy as np
 
@@ -26,7 +26,7 @@ class MainNode(Node):
         self.controller = Controller(self)
 
         # Publishers
-        self.motor_pub = self.create_publisher(XycarMotor, 'xycar_motor', 10)
+        # self.motor_pub = self.create_publisher(XycarMotor, 'xycar_motor', 10)
         self.mode_pub = self.create_publisher(Int32MultiArray, 'mode_info', 10)
 
         # Subscribers (state updates only)
@@ -106,10 +106,10 @@ class MainNode(Node):
         speed = self.controller.get_speed()
 
         # 모터 제어 메시지 퍼블리시
-        motor_msg = XycarMotor()
-        motor_msg.angle = int(angle)
-        motor_msg.speed = int(speed)
-        self.motor_pub.publish(motor_msg)
+        # motor_msg = XycarMotor()
+        # motor_msg.angle = int(angle)
+        # motor_msg.speed = int(speed)
+        # self.motor_pub.publish(motor_msg)
 
         # 모드 정보 퍼블리시
         mode_msg = Int32MultiArray()
@@ -129,13 +129,13 @@ class MainNode(Node):
             OBSTACLE_APPROACH: 'OBSTACLE_APPROACH',
             CHANGE_LANE:       'CHANGE_LANE',
         }
-        mode_str        = f"현재 모드: {mode_map.get(self.mode, 'UNKNOWN')}"
-        lane_str        = f"{'1차선 주행' if self.lane==0 else '2차선 주행'}"
-        endflag_str     = '라바콘 종료' if self.end_flag==1 else '라바콘 종료 전'
+        mode_str        = f"Mode: {mode_map.get(self.mode, 'UNKNOWN')}"
+        lane_str        = f"{'Lane 1' if self.lane==0 else 'Lane 2'}"
+        endflag_str     = 'Rubber End' if self.end_flag==1 else 'Rubber Not End'
         objinfo_map     = {
-            -1: '미감지',
-             0: '장애물 1차선 감지',
-             1: '장애물 2차선 감지',
+            -1: 'Not Detected',
+             0: 'Obstacle left',
+             1: 'Obstacle right',
         }
         objinfo_str     = objinfo_map.get(self.object_info, 'UNKNOWN')
         offset_str      = f"Offset: {offset}"

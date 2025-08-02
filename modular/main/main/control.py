@@ -18,9 +18,9 @@ CHANGE_LANE       = 5  # 차선 변경 모드
 # PD 제어 파라미터: mode → (kp, kd, alpha)
 # kp: 비례 이득, kd: 미분 이득, alpha: 비선형 보정 계수
 PD_PARAMS = {
-    RUBBERCONE_DRIVE: (0.1, 0.0, 0.0),
-    LANE_DRIVE:       (0.1, 0.0, 0.0),
-    CHANGE_LANE:      (0.1, 0.0, 0.0),
+    RUBBERCONE_DRIVE: (1, 0.0, 0.0),
+    LANE_DRIVE:       (1, 0.0, 0.0),
+    CHANGE_LANE:      (1, 0.0, 0.0),
 }
 
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
@@ -55,7 +55,7 @@ SpeedParams = namedtuple('SpeedParams', ['max_speed', 'min_speed', 'scale_factor
 PDParams    = namedtuple('PDParams',    ['kp', 'kd', 'alpha'])
 
 class Controller:
-    def __init__(self):
+    def __init__(self, node):
         """
         Controller 객체 초기화
         - 내부 상태 초기화

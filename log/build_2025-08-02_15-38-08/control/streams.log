@@ -1,0 +1,4 @@
+[0.036s] Invoking command in '/home/doldolmeng2/xycar_ws/src/orda/build/control': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/doldolmeng2/xycar_ws/install/manual_drive:/opt/ros/humble /usr/bin/cmake /home/doldolmeng2/xycar_ws/src/orda/modular/control -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/doldolmeng2/xycar_ws/src/orda/install/control
+[0.310s] -- The C compiler identification is GNU 11.4.0
+[0.506s] -- The CXX compiler identification is GNU 11.4.0
+[0.641s] Invoked command in '/home/doldolmeng2/xycar_ws/src/orda/build/control' returned '-2': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/doldolmeng2/xycar_ws/install/manual_drive:/opt/ros/humble /usr/bin/cmake /home/doldolmeng2/xycar_ws/src/orda/modular/control -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/doldolmeng2/xycar_ws/src/orda/install/control
