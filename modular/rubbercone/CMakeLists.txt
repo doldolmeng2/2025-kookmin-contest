@@ -11,23 +11,26 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 # 실행 파일 빌드
 add_executable(rubbercone_node src/rubbercone.cpp)
 
 # ROS2 의존성 연결
-ament_target_dependencies(rubbercone_node rclcpp std_msgs sensor_msgs)
+ament_target_dependencies(rubbercone_node rclcpp std_msgs sensor_msgs cv_bridge)
 
 # include 경로 추가
 target_include_directories(rubbercone_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${OpenCV_INCLUDE_DIRS}
+  ${cv_bridge_INCLUDE_DIRS}
 )
 
 # OpenCV 라이브러리 링크
 target_link_libraries(rubbercone_node
   ${OpenCV_LIBRARIES}
+  ${cv_bridge_LIBRARIES}
 )
 
 # 실행 파일 설치
