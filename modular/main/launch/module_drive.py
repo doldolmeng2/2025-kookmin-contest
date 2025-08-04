@@ -56,6 +56,16 @@ def generate_launch_description():
         name='object_node',
         output='screen'
     )
+    joy_node = Node(
+    package='joy',
+    executable='joy_node',
+    name='joy_node',
+    output='screen',
+    parameters=[{
+        'dev': '/dev/input/js0',    # 조이스틱 장치 경로
+        'deadzone': 0.05,           # 작은 떨림 무시 구간
+    }]
+)
 
     return LaunchDescription([
         mode_arg,
@@ -65,4 +75,5 @@ def generate_launch_description():
         resize_node,
         lane_node,
         object_node,
+        joy_node,
     ])
