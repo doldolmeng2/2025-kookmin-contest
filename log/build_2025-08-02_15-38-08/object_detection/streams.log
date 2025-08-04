@@ -1,0 +1,2 @@
+[0.283s] Invoking command in '/home/doldolmeng2/xycar_ws/src/orda/build/object_detection': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/doldolmeng2/xycar_ws/install/manual_drive:/opt/ros/humble /usr/bin/cmake /home/doldolmeng2/xycar_ws/src/orda/modular/object_detection -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/doldolmeng2/xycar_ws/src/orda/install/object_detection
+[0.388s] -- The C compiler identification is GNU 11.4.0

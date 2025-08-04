@@ -1,0 +1,4 @@
+[0.036s] Invoking command in '/home/doldolmeng2/xycar_ws/src/orda/build/lane_detection': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/doldolmeng2/xycar_ws/install/manual_drive:/opt/ros/humble /usr/bin/cmake /home/doldolmeng2/xycar_ws/src/orda/modular/lane_detection -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/doldolmeng2/xycar_ws/src/orda/install/lane_detection
+[0.308s] -- The C compiler identification is GNU 11.4.0
+[0.500s] -- The CXX compiler identification is GNU 11.4.0
+[0.639s] Invoked command in '/home/doldolmeng2/xycar_ws/src/orda/build/lane_detection' returned '-2': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/doldolmeng2/xycar_ws/install/manual_drive:/opt/ros/humble /usr/bin/cmake /home/doldolmeng2/xycar_ws/src/orda/modular/lane_detection -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/doldolmeng2/xycar_ws/src/orda/install/lane_detection
