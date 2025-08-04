@@ -98,6 +98,8 @@ class MainNode(Node):
         now = self.get_clock().now()
         if self.rubbercone_end_time is not None:
             elapsed = (now - self.rubbercone_end_time).nanoseconds / 1e9
+        else:
+            elapsed = 0.0
         # 모드 전환
         if self.mode == TRAFFIC_WAIT and self.traffic_green:
             self.mode = RUBBERCONE_DRIVE
