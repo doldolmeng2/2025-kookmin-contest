@@ -5,6 +5,7 @@ from std_msgs.msg import Int32MultiArray, Int16, Bool
 from main.control import Controller
 import cv2
 import numpy as np
+from sensor_msgs.msg import Joy
 
 # 모드 상수 정의
 TRAFFIC_WAIT = 0
@@ -36,6 +37,13 @@ class MainNode(Node):
         self.create_subscription(Bool,    'traffic_detection',self.traffic_callback, 10)
         self.create_subscription(Int16, 'object_distance', self.object_distance_callback, 10)
 
+        # Xbox 컨트롤러 조이스틱 토픽 구독
+        self.create_subscription(Joy, 'joy', self.joy_callback, 10)
+        # 버튼 디바운스용 이전 상태
+        self.prev_x = 0
+        self.prev_b = 0
+
+
         # Variables
         self.lane = 0
         self.rubbercone_offset = 0
@@ -49,6 +57,25 @@ class MainNode(Node):
 
         # 20 ms timer to run control cycle at ~50 Hz
         self.create_timer(0.02, self.control_cycle)
+
+    def joy_callback(self, msg: Joy):
+        """
+        X 버튼(x축 인덱스 2) 누르면 mode--,
+        B 버튼(인덱스 1) 누르면 mode++.
+        rising edge 만 처리하고 0~5 로 클램프.
+        """
+        x = msg.buttons[2]
+        b = msg.buttons[1]
+        # X 버튼 rising edge → mode--
+        if x == 1 and self.prev_x == 0:
+            self.mode = max(TRAFFIC_WAIT, self.mode - 1)
+            self.get_logger().info(f"Mode-- -> {self.mode}")
+        # B 버튼 rising edge → mode++
+        if b == 1 and self.prev_b == 0:
+            self.mode = min(CHANGE_LANE, self.mode + 1)
+            self.get_logger().info(f"Mode++ -> {self.mode}")
+        self.prev_x = x
+        self.prev_b = b
 
     def rubbercone_callback(self, msg):
         if len(msg.data) >= 2:
