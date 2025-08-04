@@ -6,4 +6,3 @@ int main(){
     // Additional initialization code can go here
     return 0;
 }
-
