@@ -190,7 +190,7 @@ class MainNode(Node):
 
 
     def is_change_end(self):
-        return True if abs(self.lane_offset) < 30 else False
+        return True if abs(self.lane_offset) < 0 else False
 
 
 def main(args=None):
