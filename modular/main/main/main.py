@@ -19,8 +19,8 @@ class MainNode(Node):
         super().__init__('main_node')
 
         # Parameter
-        self.declare_parameter('initial_mode', TRAFFIC_WAIT)
-        self.mode = self.get_parameter('initial_mode').value
+        self.declare_parameter('mode', TRAFFIC_WAIT)
+        self.mode = self.get_parameter('mode').value
 
         # Controller
         self.controller = Controller(self)

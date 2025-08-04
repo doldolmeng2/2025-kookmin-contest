@@ -10,13 +10,13 @@ from launch_ros.actions import Node
 # ros2 launch main main_launch.py initial_mode:=3
 
 def generate_launch_description():
-    # 1) 런치 아규먼트 선언: initial_mode (기본값 0)
-    initial_mode_arg = DeclareLaunchArgument(
-        'initial_mode',
+    # 1) 런치 아규먼트 선언: mode (기본값 0)
+    mode_arg = DeclareLaunchArgument(
+        'mode',
         default_value='0',
-        description='Main node initial_mode parameter'
+        description='Main node mode parameter'
     )
-    initial_mode = LaunchConfiguration('initial_mode')
+    mode = LaunchConfiguration('mode')
 
     # 2) 각 노드 실행 설정
     main_node = Node(
@@ -24,7 +24,7 @@ def generate_launch_description():
         executable='main_node',
         name='main_node',
         output='screen',
-        parameters=[{'initial_mode': initial_mode}]
+        parameters=[{'mode': mode}]
     )
     traffic_node = Node(
         package='traffic_light',
@@ -58,7 +58,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        initial_mode_arg,
+        mode_arg,
         main_node,
         traffic_node,
         rubbercone_node,
