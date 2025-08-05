@@ -11,7 +11,7 @@
   "white_max_s": 180,
   "white_min_v": 120,
   "white_max_v": 255,
-  "lane_mode": "LANE_ONE",
+  "lane_mode": "LANE_TWO",
   "frame_width": 640,
   "frame_height": 360,
   "roi_height_coefficient": 0.4,
@@ -29,6 +29,6 @@
   "kernel_yellow_opening_size": 3,
   "kernel_white_closing_size": 9,
   "kernel_white_opening_size": 3,
-  "center_reference_lane_one": 1.5,
-  "center_reference_lane_two": 0.5
+  "center_reference_lane_one": 1.15,
+  "center_reference_lane_two": 0.85
 }

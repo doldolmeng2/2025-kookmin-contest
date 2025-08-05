@@ -102,7 +102,7 @@ def generate_launch_description():
         traffic_node,
         rubbercone_node,
         resize_node,
-        # lane_node,
+        lane_node,
         # object_node,
         joy_node,
         cam_launch,

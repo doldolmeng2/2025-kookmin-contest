@@ -365,6 +365,12 @@ private:
                 }
             }
 
+            if (offset > 400){
+                offset = 400;
+            } else if (offset < -400){
+                offset = -400;
+            }
+
             // offset 퍼블리시
             std_msgs::msg::Int16 offset_msg;
             offset_msg.data = static_cast<int16_t>(offset);
