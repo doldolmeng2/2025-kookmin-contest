@@ -148,7 +148,7 @@ public:
         Vec2f right_fit = fitLineLinear(white_right_points);
         Vec2f center_fit = fitLineLinear(yellow_points);
 
-        imshow("Sliding Windows", debug_img);
+        // imshow("Sliding Windows", debug_img);
         waitKey(1);
 
         return { left_fit, right_fit, center_fit };
@@ -277,8 +277,8 @@ public:
         cv::bitwise_and(thick_edges_white, white_mask, edges_white_final);
 
         // 디버깅용 출력 (필요 시)
-        imshow("White Edge Final", edges_white_final);
-        imshow("Yellow Edge Final", edges_yellow);
+        // imshow("White Edge Final", edges_white_final);
+        // imshow("Yellow Edge Final", edges_yellow);
         waitKey(1);
 
         return { edges_white_final, edges_yellow };
@@ -315,7 +315,7 @@ public:
         // 위쪽에 offset 슬라이더를 그리고 아래에 영상 보여주기
         Mat combined;
         vconcat(slider, resized_img, combined);  // slider가 위, resized_img가 아래
-        imshow("Lane View + Offset", combined);
+        // imshow("Lane View + Offset", combined);
         waitKey(1);
     }
 
