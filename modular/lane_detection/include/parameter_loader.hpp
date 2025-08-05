@@ -2,8 +2,8 @@
 #include <string>
 
 enum class LaneMode {
-    ONE_LANE,
-    TWO_LANE
+    LANE_ONE,
+    LANE_TWO
 };
 
 struct Config {
@@ -29,12 +29,16 @@ struct Config {
     int sliding_window_margin;
     size_t sliding_window_minpix;
     int gaussian_blur_kernel_size;
-    int canny_high_threshold;
-    int canny_low_threshold;
+    int canny_yellow_high_threshold;
+    int canny_yellow_low_threshold;
+    int canny_white_high_threshold;
+    int canny_white_low_threshold;
     int kernel_yellow_closing_size;
     int kernel_yellow_opening_size;
     int kernel_white_closing_size;
     int kernel_white_opening_size;
+    float center_reference_lane_one;
+    float center_reference_lane_two;
 };
 
 LaneMode lane_mode_from_string(const std::string& mode_str);

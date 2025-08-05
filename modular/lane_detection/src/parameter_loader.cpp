@@ -4,8 +4,8 @@
 using json = nlohmann::json;
 
 LaneMode lane_mode_from_string(const std::string& mode_str) {
-    if (mode_str == "ONE_LANE") return LaneMode::ONE_LANE;
-    else if (mode_str == "TWO_LANE") return LaneMode::TWO_LANE;
+    if (mode_str == "LANE_ONE") return LaneMode::LANE_ONE;
+    else if (mode_str == "LANE_TWO") return LaneMode::LANE_TWO;
     else throw std::runtime_error("Invalid lane_mode value in config: " + mode_str);
 }
 
@@ -37,11 +37,15 @@ Config load_config(const std::string& path) {
     config.sliding_window_margin = j["sliding_window_margin"];
     config.sliding_window_minpix = j["sliding_window_minpix"];
     config.gaussian_blur_kernel_size = j["gaussian_blur_kernel_size"];
-    config.canny_high_threshold = j["canny_high_threshold"];
-    config.canny_low_threshold = j["canny_low_threshold"];
+    config.canny_yellow_high_threshold = j["canny_yellow_high_threshold"];
+    config.canny_yellow_low_threshold = j["canny_yellow_low_threshold"];
+    config.canny_white_high_threshold = j["canny_white_high_threshold"];
+    config.canny_white_low_threshold = j["canny_white_low_threshold"];
     config.kernel_yellow_closing_size = j["kernel_yellow_closing_size"];
     config.kernel_yellow_opening_size = j["kernel_yellow_opening_size"];
     config.kernel_white_closing_size = j["kernel_white_closing_size"];
     config.kernel_white_opening_size = j["kernel_white_opening_size"];
+    config.center_reference_lane_one = j["center_reference_lane_one"];
+    config.center_reference_lane_two = j["center_reference_lane_two"];
     return config;
 }
