@@ -283,6 +283,7 @@ if (has_mid) {
         cv::circle(canvas, {target_px, target_py}, 8, cv::Scalar(0,255,0), -1); // 초록색
         
         float rubbercone_offset = -final_target.y * OFFSET_GAIN_;
+        rubber_offset_value_ = rubbercone_offset;
         std::ostringstream ss;
         ss << std::fixed << std::setprecision(2)
            << "Target Offset: " << rubbercone_offset
