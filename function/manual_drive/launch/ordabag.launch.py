@@ -20,16 +20,6 @@ def generate_launch_description():
         )
     )
 
-    # xycar_imu 패키지의 launch 파일 포함
-    imu_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('xycar_imu'),
-                'launch',
-                'xycar_imu.launch.py'
-            )
-        )
-    )
 
     # xycar_ultrasonic 패키지의 launch 파일 포함
     ultrasonic_launch = IncludeLaunchDescription(
@@ -63,7 +53,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         cam_launch,
-        imu_launch,
         ultrasonic_launch,
         resize_node,
         lidar_launch,
