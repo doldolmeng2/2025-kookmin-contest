@@ -7,12 +7,12 @@
 #include <iomanip>
 #include <cstdlib>
 #include <chrono>
+#include <algorithm>
 
 LidarViewer::LidarViewer()
 : Node("rubbercone"), window_size_(800), scale_(500.0f), OFFSET_GAIN_(300.0f),
 rubber_offset_value_(0),
 rubber_end_value_(0)
-
 {
     scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
         "/scan",
@@ -28,7 +28,6 @@ rubber_end_value_(0)
 
     info_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("rubbercone_info", 10);
     
-    // 2) 50Hz 타이머 생성
     info_timer_ = this->create_wall_timer(
       std::chrono::milliseconds(20),
       std::bind(&LidarViewer::publishInfo, this)
@@ -60,13 +59,13 @@ void LidarViewer::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
                     cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1);
     }
 
-    // 3) 유효 포인트만 수집 (각도와 거리 제한)
+    // 3) 유효 포인트만 수집 (각도와 거리 제한) - 필터링 기준 유지
     const float ANG_MAX = 85.0f * M_PI/180.0f;
     std::vector<cv::Point2f> pts;
     float angle = msg->angle_min;
     for (float range : msg->ranges) {
         if (std::isfinite(range)
-            && range >= 0.18f && range <= 0.80f
+            && range >= 0.18f && range <= 1.20f
             && angle >= -ANG_MAX && angle <= ANG_MAX)
         {
             pts.emplace_back(range * std::cos(angle),
@@ -75,93 +74,237 @@ void LidarViewer::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
         angle += msg->angle_increment;
     }
 
-    // 4) DBSCAN-like 클러스터링 (eps=0.08m)
-    const float eps = 0.08f;
-    std::vector<bool> visited(pts.size(), false);
-    std::vector<std::vector<int>> clusters;
-    for (size_t i = 0; i < pts.size(); ++i) {
-        if (visited[i]) continue;
-        std::vector<int> stack = {int(i)}, cluster;
-        visited[i] = true;
-        while (!stack.empty()) {
-            int idx = stack.back(); stack.pop_back();
-            cluster.push_back(idx);
-            for (size_t j = 0; j < pts.size(); ++j) {
-                if (visited[j]) continue;
-                float dx = pts[j].x - pts[idx].x;
-                float dy = pts[j].y - pts[idx].y;
-                if (std::sqrt(dx*dx + dy*dy) <= eps) {
-                    visited[j] = true;
-                    stack.push_back(int(j));
+    // 4) 새로운 그룹화 알고리즘: 순차적 라바콘 검출
+    std::vector<cv::Point2f> left_group, right_group;
+    
+    // 좌측과 우측에서 가장 가까운 점 찾기
+    cv::Point2f left_first, right_first;
+    float left_min_dist = 1e6f, right_min_dist = 1e6f;
+    bool found_left = false, found_right = false;
+    
+    for (const auto& pt : pts) {
+        float dist = std::hypot(pt.x, pt.y);
+        if (pt.y > 0) { // 좌측
+            if (dist < left_min_dist) {
+                left_min_dist = dist;
+                left_first = pt;
+                found_left = true;
+            }
+        } else { // 우측
+            if (dist < right_min_dist) {
+                right_min_dist = dist;
+                right_first = pt;
+                found_right = true;
+            }
+        }
+    }
+    
+    // L그룹 구성: 첫 번째 라바콘부터 38cm 간격으로 순차 검출
+    if (found_left) {
+        left_group.push_back(left_first);
+        cv::Point2f current = left_first;
+        const float CONE_DISTANCE = 0.38f; // 38cm
+        
+        while (left_group.size() < 3) { // 최대 3개까지
+            cv::Point2f next_cone;
+            float min_valid_dist = 1e6f;
+            bool found_next = false;
+            
+            for (const auto& pt : pts) {
+                if (pt.y <= 0) continue; // 좌측만
+                float dist_from_current = std::hypot(pt.x - current.x, pt.y - current.y);
+                float dist_from_origin = std::hypot(pt.x, pt.y);
+                
+                // 현재 라바콘보다 더 멀리 있고, 38cm 근처에 있는 점 찾기
+                if (dist_from_origin > std::hypot(current.x, current.y) + 0.1f && 
+                    std::abs(dist_from_current - CONE_DISTANCE) < 0.15f &&
+                    dist_from_origin < min_valid_dist) {
+                    
+                    // 이미 선택된 라바콘과 너무 가깝지 않은지 확인
+                    bool too_close = false;
+                    for (const auto& existing : left_group) {
+                        if (std::hypot(pt.x - existing.x, pt.y - existing.y) < 0.1f) {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!too_close) {
+                        min_valid_dist = dist_from_origin;
+                        next_cone = pt;
+                        found_next = true;
+                    }
                 }
             }
-        }
-        clusters.push_back(std::move(cluster));
-    }
-
-    // 5) 클러스터별 가장 먼 점 → 빨간 점, 좌·우 근거리 대표점 추출
-    float left_min = 1e6f, right_min = 1e6f;
-    cv::Point2f left_pt, right_pt;
-    for (auto &cluster : clusters) {
-        float max_r = 0; int far_idx = -1;
-        for (int idx : cluster) {
-            float r = std::hypot(pts[idx].x, pts[idx].y);
-            if (r > max_r) {
-                max_r = r;
-                far_idx = idx;
+            
+            if (found_next) {
+                left_group.push_back(next_cone);
+                current = next_cone;
+            } else {
+                break;
             }
         }
-        if (far_idx < 0) continue;
-        int px = int(center.x - pts[far_idx].y * scale_);
-        int py = int(center.y - pts[far_idx].x * scale_);
-        cv::circle(canvas, {px, py}, 4, cv::Scalar(0,0,255), -1);
-
-        if (pts[far_idx].y > 0 && max_r < left_min) {
-            left_min = max_r;
-            left_pt  = pts[far_idx];
-        }
-        if (pts[far_idx].y < 0 && max_r < right_min) {
-            right_min = max_r;
-            right_pt  = pts[far_idx];
+    }
+    
+    // R그룹 구성: 동일한 방식
+    if (found_right) {
+        right_group.push_back(right_first);
+        cv::Point2f current = right_first;
+        const float CONE_DISTANCE = 0.38f; // 38cm
+        
+        while (right_group.size() < 3) { // 최대 3개까지
+            cv::Point2f next_cone;
+            float min_valid_dist = 1e6f;
+            bool found_next = false;
+            
+            for (const auto& pt : pts) {
+                if (pt.y >= 0) continue; // 우측만
+                float dist_from_current = std::hypot(pt.x - current.x, pt.y - current.y);
+                float dist_from_origin = std::hypot(pt.x, pt.y);
+                
+                // 현재 라바콘보다 더 멀리 있고, 38cm 근처에 있는 점 찾기
+                if (dist_from_origin > std::hypot(current.x, current.y) + 0.1f && 
+                    std::abs(dist_from_current - CONE_DISTANCE) < 0.15f &&
+                    dist_from_origin < min_valid_dist) {
+                    
+                    // 이미 선택된 라바콘과 너무 가깝지 않은지 확인
+                    bool too_close = false;
+                    for (const auto& existing : right_group) {
+                        if (std::hypot(pt.x - existing.x, pt.y - existing.y) < 0.1f) {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!too_close) {
+                        min_valid_dist = dist_from_origin;
+                        next_cone = pt;
+                        found_next = true;
+                    }
+                }
+            }
+            
+            if (found_next) {
+                right_group.push_back(next_cone);
+                current = next_cone;
+            } else {
+                break;
+            }
         }
     }
 
-    // 6) 교점 계산 및 초록색 점으로 그리기
-    bool has_mid = false;
-    cv::Point2f mid;
-    if (left_min < 1e6f && right_min < 1e6f) {
-        // 양쪽 대표점이 모두 검출된 경우
-        mid = { (left_pt.x + right_pt.x)/2, (left_pt.y + right_pt.y)/2 };
-        float offset_m = - mid.y;
-        rubber_offset_value_ = static_cast<int32_t>(offset_m * OFFSET_GAIN_);
-        rubber_end_value_ = 0;
-        has_mid = true;
-    } else {
-        // 왼쪽 또는 오른쪽 대표점이 하나라도 없으면 중앙점 계산 불가능
-        has_mid = false;
-        rubber_offset_value_ = 0;
-        rubber_end_value_ = 1;
+    // 5) 그룹별 라바콘을 화면에 그리기
+    // L그룹을 파란색으로 표시
+    for (size_t i = 0; i < left_group.size(); ++i) {
+        int px = int(center.x - left_group[i].y * scale_);
+        int py = int(center.y - left_group[i].x * scale_);
+        cv::circle(canvas, {px, py}, 4, cv::Scalar(255,0,0), -1); // 파란색
+        cv::putText(canvas, "L" + std::to_string(i+1), {px+5, py-5}, 
+                   cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1);
+    }
+    
+    // R그룹을 빨간색으로 표시
+    for (size_t i = 0; i < right_group.size(); ++i) {
+        int px = int(center.x - right_group[i].y * scale_);
+        int py = int(center.y - right_group[i].x * scale_);
+        cv::circle(canvas, {px, py}, 4, cv::Scalar(0,0,255), -1); // 빨간색
+        cv::putText(canvas, "R" + std::to_string(i+1), {px+5, py-5}, 
+                   cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1);
     }
 
-    // 7) 화면에 중앙점 편차 텍스트 그리기
+// 6) 각 그룹의 첫 번째와 두 번째 라바콘의 중점 계산 (예외 처리 포함)
+bool has_mid = false;
+cv::Point2f final_target;
+
+// 양쪽 그룹에 각각 최소 2개 이상 라바콘이 검출된 경우 (기존 로직)
+if (left_group.size() >= 2 && right_group.size() >= 2) {
+    // L그룹의 중점
+    cv::Point2f left_mid = {
+        (left_group[0].x + left_group[1].x) * 0.5f,
+        (left_group[0].y + left_group[1].y) * 0.5f
+    };
+    // R그룹의 중점
+    cv::Point2f right_mid = {
+        (right_group[0].x + right_group[1].x) * 0.5f,
+        (right_group[0].y + right_group[1].y) * 0.5f
+    };
+    // 두 중점의 중점 → 최종 목표점
+    final_target = {
+        (left_mid.x + right_mid.x) * 0.5f,
+        (left_mid.y + right_mid.y) * 0.5f
+    };
+    has_mid = true;
+
+// 예외 1) L그룹에 1개, R그룹에 2개 이상 검출된 경우
+} else if (left_group.size() == 1 && right_group.size() >= 2) {
+    // R그룹에서 두 개의 중점
+    cv::Point2f right_mid = {
+        (right_group[0].x + right_group[1].x) * 0.5f,
+        (right_group[0].y + right_group[1].y) * 0.5f
+    };
+    // L그룹의 유일한 점
+    cv::Point2f left_pt = left_group[0];
+    // 두 점의 중점 → 최종 목표점
+    final_target = {
+        (left_pt.x + right_mid.x) * 0.5f,
+        (left_pt.y + right_mid.y) * 0.5f
+    };
+    has_mid = true;
+
+// 예외 2) R그룹에 1개, L그룹에 2개 이상 검출된 경우
+} else if (right_group.size() == 1 && left_group.size() >= 2) {
+    // L그룹에서 두 개의 중점
+    cv::Point2f left_mid = {
+        (left_group[0].x + left_group[1].x) * 0.5f,
+        (left_group[0].y + left_group[1].y) * 0.5f
+    };
+    // R그룹의 유일한 점
+    cv::Point2f right_pt = right_group[0];
+    // 두 점의 중점 → 최종 목표점
+    final_target = {
+        (left_mid.x + right_pt.x) * 0.5f,
+        (left_mid.y + right_pt.y) * 0.5f
+    };
+    has_mid = true;
+}
+
+// has_mid가 true일 때만 최종 목표점을 사용하고, 그렇지 않으면 검출 실패로 처리
+if (has_mid) {
+    // final_target 활용 로직...
+} else {
+    // 검출 실패 처리 (rubber_offset_value_=0, rubber_end_value_=1 등)
+}
+
+
+    // 7) 최종 목표점 표시 및 정보 출력
     if (has_mid) {
-        int mid_px = int(center.x - mid.y * scale_);
-        int mid_py = int(center.y - mid.x * scale_);
-        cv::circle(canvas, {mid_px, mid_py}, 6, cv::Scalar(0,255,0), -1);
-        // mid.x, mid.y 는 미터 단위. 원하는 포맷으로 예: 소수점 둘째 자리
-        // 좌우 오프셋만 표시 (mid.y)
-        float rubbercone_offset = - mid.y * OFFSET_GAIN_; // cm 단위로 변환
+        int target_px = int(center.x - final_target.y * scale_);
+        int target_py = int(center.y - final_target.x * scale_);
+        cv::circle(canvas, {target_px, target_py}, 8, cv::Scalar(0,255,0), -1); // 초록색
+        
+        float rubbercone_offset = -final_target.y * OFFSET_GAIN_;
         std::ostringstream ss;
         ss << std::fixed << std::setprecision(2)
-            << "Rubbercone Offset: " << rubbercone_offset;
+           << "Target Offset: " << rubbercone_offset
+           << " | L:" << left_group.size() << " R:" << right_group.size();
         cv::putText(
             canvas,
             ss.str(),
-            cv::Point(10, 30),            // 왼쪽 위OFFSET_GAIN
+            cv::Point(10, 30),
             cv::FONT_HERSHEY_SIMPLEX,
-            0.6,                          // 글자 크기
-            cv::Scalar(255,255,255),      // 색상: 흰색
-            2                             // 두께
+            0.6,
+            cv::Scalar(255,255,255),
+            2
+        );
+    } else {
+        cv::putText(
+            canvas,
+            "Insufficient cones detected",
+            cv::Point(10, 30),
+            cv::FONT_HERSHEY_SIMPLEX,
+            0.6,
+            cv::Scalar(255,255,255),
+            2
         );
     }
 
