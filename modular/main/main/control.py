@@ -26,7 +26,7 @@ PD_PARAMS = {
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
 # max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
-    RUBBERCONE_DRIVE: (40.0, 30.0, 0.1),
+    RUBBERCONE_DRIVE: (10.0, 10.0, 0.1),
     LANE_DRIVE:       (50.0, 30.0, 0.1),
     CHANGE_LANE:      (30.0, 20.0, 0.1),
 }

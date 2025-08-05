@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32MultiArray, Int16, Bool
-# from xycar_msgs.msg import XycarMotor
+from xycar_msgs.msg import XycarMotor
 from main.control import Controller
 import cv2
 import numpy as np
@@ -27,7 +27,7 @@ class MainNode(Node):
         self.controller = Controller(self)
 
         # Publishers
-        # self.motor_pub = self.create_publisher(XycarMotor, 'xycar_motor', 10)
+        self.motor_pub = self.create_publisher(XycarMotor, 'xycar_motor', 10)
         self.mode_pub = self.create_publisher(Int32MultiArray, 'mode_info', 10)
 
         # Subscribers (state updates only)
@@ -68,6 +68,8 @@ class MainNode(Node):
         b = msg.buttons[1]
         # X 버튼 rising edge → mode--
         if x == 1 and self.prev_x == 0:
+            self.end_flag = 0 # X 버튼 누르면 라바콘 종료 플래그 초기화
+            self.rubbercone_end_time = None # 라바콘 종료 시간 초기화
             self.mode = max(TRAFFIC_WAIT, self.mode - 1)
             self.get_logger().info(f"Mode-- -> {self.mode}")
         # B 버튼 rising edge → mode++
@@ -101,14 +103,14 @@ class MainNode(Node):
         else:
             elapsed = 0.0
         # 모드 전환
-        if self.mode == TRAFFIC_WAIT and self.traffic_green:
+        if self.mode == TRAFFIC_WAIT and self.traffic_green and False:
             self.mode = RUBBERCONE_DRIVE
 
-        elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1:
+        elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1 and False:
             self.mode = RUBBERCONE_END
             self.rubbercone_end_time = now
 
-        elif self.mode == RUBBERCONE_END and elapsed > self.into_lane_timer:
+        elif self.mode == RUBBERCONE_END and elapsed > self.into_lane_timer and False:
             self.mode = LANE_DRIVE
 
         elif self.mode == LANE_DRIVE and self.object_dist != 0: # object_dist need reset
@@ -135,10 +137,10 @@ class MainNode(Node):
         speed = self.controller.get_speed()
 
         # 모터 제어 메시지 퍼블리시
-        # motor_msg = XycarMotor()
-        # motor_msg.angle = int(angle)
-        # motor_msg.speed = int(speed)
-        # self.motor_pub.publish(motor_msg)
+        motor_msg = XycarMotor()
+        motor_msg.angle = angle
+        motor_msg.speed = speed
+        self.motor_pub.publish(motor_msg)
 
         # 모드 정보 퍼블리시
         mode_msg = Int32MultiArray()
@@ -148,7 +150,7 @@ class MainNode(Node):
         # log: 화면에 상태 텍스트 그리기
         # 1) 빈 화면 초기화
         log_img = np.zeros((300, 600, 3), dtype=np.uint8)
-
+        self.get_logger().info(f"Mode++ -> {self.mode}    {angle}  {speed:.1f}    Offset: {offset}    Lane: {self.lane}    Object Info: {self.object_info}    Object Dist: {self.object_dist}")
         # 2) 변수 문자열 변환
         mode_map = {
             TRAFFIC_WAIT:      'TRAFFIC_WAIT',

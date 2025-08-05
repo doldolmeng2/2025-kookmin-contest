@@ -1,16 +1,15 @@
-# main/launch/main_launch.py
-
 import launch
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration
+from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 from launch_ros.actions import Node
+import os
 
-# 시작 모드 지정 명령어
-# ros2 launch main main_launch.py initial_mode:=3
+from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    # 1) 런치 아규먼트 선언: mode (기본값 0)
+    # 1) 런치 아규먼트 선언
     mode_arg = DeclareLaunchArgument(
         'mode',
         default_value='0',
@@ -18,7 +17,13 @@ def generate_launch_description():
     )
     mode = LaunchConfiguration('mode')
 
-    # 2) 각 노드 실행 설정
+    motor_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('xycar_motor'),
+                'launch/xycar_motor.launch.py'))
+    )
+    # 2) 기존 노드들
     main_node = Node(
         package='main',
         executable='main_node',
@@ -57,23 +62,49 @@ def generate_launch_description():
         output='screen'
     )
     joy_node = Node(
-    package='joy',
-    executable='joy_node',
-    name='joy_node',
-    output='screen',
-    parameters=[{
-        'dev': '/dev/input/js0',    # 조이스틱 장치 경로
-        'deadzone': 0.05,           # 작은 떨림 무시 구간
-    }]
-)
+        package='joy',
+        executable='joy_node',
+        name='joy_node',
+        output='screen',
+        parameters=[{
+            'dev': '/dev/input/js0',
+            'deadzone': 0.05,
+        }]
+    )
 
+    # 3) 포함할 런치파일 추가
+
+    # xycar_cam.launch (xml 형식)
+    cam_launch = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('xycar_cam'),
+                'launch/xycar_cam.launch.py'
+            )
+        )
+    )
+
+    # xycar_lidar.launch.py (python 형식)
+    lidar_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('xycar_lidar'),
+                'launch/xycar_lidar.launch.py'
+            )
+        )
+    )
+
+    # 4) LaunchDescription 반환
     return LaunchDescription([
+        motor_include,
         mode_arg,
         main_node,
         traffic_node,
         rubbercone_node,
         resize_node,
-        lane_node,
-        object_node,
+        # lane_node,
+        # object_node,
         joy_node,
+        cam_launch,
+        lidar_launch,
     ])

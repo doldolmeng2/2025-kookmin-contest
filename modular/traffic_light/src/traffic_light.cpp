@@ -21,7 +21,7 @@ public:
 
     ////////////  임계치 설정  ///////////////
     // 녹색 픽셀 검출 임계치 0.01 = 1%
-    threshold_ratio_ = 0.1;
+    threshold_ratio_ = 0.9;
   }
 
 private:
