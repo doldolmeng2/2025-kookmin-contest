@@ -1,0 +1,16 @@
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/lib/image_resize/resize_node
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/ament_index/resource_index/package_run_dependencies/image_resize
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/ament_index/resource_index/parent_prefix_path/image_resize
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/environment/ament_prefix_path.sh
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/environment/ament_prefix_path.dsv
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/environment/path.sh
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/environment/path.dsv
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/local_setup.bash
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/local_setup.sh
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/local_setup.zsh
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/local_setup.dsv
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/package.dsv
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/ament_index/resource_index/packages/image_resize
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/cmake/image_resizeConfig.cmake
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/cmake/image_resizeConfig-version.cmake
+/home/xytron/xycar_ws/src/orda/modular/image_resize/install/image_resize/share/image_resize/package.xml

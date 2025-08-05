@@ -1,0 +1,17 @@
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/lib/lane_detection/lane_node
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/lib/lane_detection/hsv_tuner_node
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/ament_index/resource_index/package_run_dependencies/lane_detection
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/ament_index/resource_index/parent_prefix_path/lane_detection
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/environment/ament_prefix_path.sh
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/environment/ament_prefix_path.dsv
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/environment/path.sh
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/environment/path.dsv
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/local_setup.bash
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/local_setup.sh
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/local_setup.zsh
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/local_setup.dsv
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/package.dsv
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/ament_index/resource_index/packages/lane_detection
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/cmake/lane_detectionConfig.cmake
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/cmake/lane_detectionConfig-version.cmake
+/home/xytron/xycar_ws/src/orda/modular/lane_detection/install/lane_detection/share/lane_detection/package.xml
