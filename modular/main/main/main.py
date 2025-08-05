@@ -43,6 +43,8 @@ class MainNode(Node):
         self.prev_x = 0
         self.prev_b = 0
 
+        # test mode 파라미터
+        self.test_mode = True
 
         # Variables
         self.lane = 0
@@ -103,30 +105,31 @@ class MainNode(Node):
         else:
             elapsed = 0.0
         # 모드 전환
-        if self.mode == TRAFFIC_WAIT and self.traffic_green and False:
-            self.mode = RUBBERCONE_DRIVE
+        if not self.test_mode: # test mode가 아닐 때만 모드 변경
+            if self.mode == TRAFFIC_WAIT and self.traffic_green and:
+                self.mode = RUBBERCONE_DRIVE
 
-        elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1 and False:
-            self.mode = RUBBERCONE_END
-            self.rubbercone_end_time = now
+            elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1:
+                self.mode = RUBBERCONE_END
+                self.rubbercone_end_time = now
 
-        elif self.mode == RUBBERCONE_END and elapsed > self.into_lane_timer and False:
-            self.mode = LANE_DRIVE
-
-        elif self.mode == LANE_DRIVE and self.object_dist != 0: # object_dist need reset
-            self.mode = OBSTACLE_APPROACH
-
-        elif self.mode == OBSTACLE_APPROACH and self.object_info != -1: # object_info is detected
-            if self.lane == self.object_info :  # same side 
-                self.lane = 1 - self.object_info # change lane
-                self.mode = CHANGE_LANE
-            else:                               # different side
+            elif self.mode == RUBBERCONE_END and elapsed > self.into_lane_timer:
                 self.mode = LANE_DRIVE
-            self.object_dist = 0 # reset object distance
-            self.object_info = -1 # reset object info
 
-        elif self.mode == CHANGE_LANE and self.is_change_end():
-            self.mode = LANE_DRIVE
+            elif self.mode == LANE_DRIVE and self.object_dist != 0: # object_dist need reset
+                self.mode = OBSTACLE_APPROACH
+
+            elif self.mode == OBSTACLE_APPROACH and self.object_info != -1: # object_info is detected
+                if self.lane == self.object_info :  # same side 
+                    self.lane = 1 - self.object_info # change lane
+                    self.mode = CHANGE_LANE
+                else:                               # different side
+                    self.mode = LANE_DRIVE
+                self.object_dist = 0 # reset object distance
+                self.object_info = -1 # reset object info
+
+            elif self.mode == CHANGE_LANE and self.is_change_end():
+                self.mode = LANE_DRIVE
             
         # 오프셋 선택
         offset = self.rubbercone_offset if self.mode == RUBBERCONE_DRIVE else self.lane_offset
