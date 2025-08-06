@@ -1,329 +1,196 @@
 #include "rubbercone/rubbercone.hpp"
 #include <cv_bridge/cv_bridge.h>
-#include <std_msgs/msg/int32_multi_array.hpp>
+#include <std_msgs/msg/Int32_multi_array.hpp>
 #include <vector>
 #include <cmath>
-#include <sstream>
-#include <iomanip>
-#include <cstdlib>
-#include <chrono>
 #include <algorithm>
 
-LidarViewer::LidarViewer()
-: Node("rubbercone"), window_size_(800), scale_(500.0f), OFFSET_GAIN_(300.0f),
-rubber_offset_value_(0),
-rubber_end_value_(0)
-{
-    scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-        "/scan",
-        rclcpp::SensorDataQoS(),
-        std::bind(&LidarViewer::scanCallback, this, std::placeholders::_1)
-    );
+class LidarViewer : public rclcpp::Node {
+private:
+    cv::Mat background_canvas_;
+    cv::Point2f center_;
+    std::vector<std::pair<float, float>> valid_points_;
+    std::vector<int> left_indices_, right_indices_;
+    static constexpr float CONE_DIST_SQ   = 0.38f * 0.38f;
+    static constexpr float TOLERANCE_SQ   = 0.15f * 0.15f;
+    int window_size_       = 800;
+    float scale_           = 500.0f;
+    float OFFSET_GAIN_     = 300.0f;
+    int rubber_offset_value_ = 0;
+    int rubber_end_value_    = 0;
 
-    image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "/image_raw",
-        rclcpp::SensorDataQoS(),
-        std::bind(&LidarViewer::imageCallback, this, std::placeholders::_1)
-    );
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
+    rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr info_pub_;
+    rclcpp::TimerBase::SharedPtr info_timer_;
 
-    info_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("rubbercone_info", 10);
-    
-    info_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(20),
-      std::bind(&LidarViewer::publishInfo, this)
-    );
+public:
+    LidarViewer()
+    : Node("rubbercone"), center_(window_size_/2, window_size_/2)
+    {
+        createBackground();
+        valid_points_.reserve(500);
+        left_indices_.reserve(10);
+        right_indices_.reserve(10);
 
-    cv::namedWindow("Lidar View", cv::WINDOW_AUTOSIZE);
-    cv::namedWindow("Camera View", cv::WINDOW_AUTOSIZE);
-}
+        scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
+            "/scan", rclcpp::SensorDataQoS(),
+            [this](auto msg){ fastScanCallback(msg); });
 
-void LidarViewer::publishInfo() {
-  std_msgs::msg::Int32MultiArray msg;
-  msg.data.resize(2);
-  msg.data[0] = rubber_offset_value_;
-  msg.data[1] = rubber_end_value_;
-  info_pub_->publish(msg);
-}
+        image_sub_ = create_subscription<sensor_msgs::msg::Image>(
+            "/image_raw", rclcpp::SensorDataQoS(),
+            [this](auto msg){
+                cv::imshow("Camera View", cv_bridge::toCvCopy(msg, "bgr8")->image);
+                cv::waitKey(1);
+            });
 
-void LidarViewer::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
-    // 1) 캔버스 준비
-    cv::Mat canvas = cv::Mat::zeros(window_size_, window_size_, CV_8UC3);
-    cv::Point2f center(window_size_/2, window_size_/2);
+        info_pub_ = create_publisher<std_msgs::msg::Int32MultiArray>("rubbercone_info", 10);
+        info_timer_ = create_wall_timer(
+            std::chrono::milliseconds(20),
+            [this](){
+                std_msgs::msg::Int32MultiArray m;
+                m.data = {rubber_offset_value_, rubber_end_value_};
+                info_pub_->publish(m);
+            });
 
-    // 2) 10cm 단위 동심원 (10~100cm)
-    for (int r_cm = 10; r_cm <= 100; r_cm += 10) {
-        float rad_px = r_cm * (scale_ / 100.0f);
-        cv::circle(canvas, center, int(rad_px), cv::Scalar(100,100,100), 1);
-        cv::putText(canvas, std::to_string(r_cm) + "cm",
-                    {int(center.x + 5), int(center.y - rad_px)},
-                    cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1);
+        cv::namedWindow("Lidar View", cv::WINDOW_AUTOSIZE);
+        cv::namedWindow("Camera View", cv::WINDOW_AUTOSIZE);
     }
 
-    // 3) 유효 포인트만 수집 (각도와 거리 제한) - 필터링 기준 유지
-    const float ANG_MAX = 85.0f * M_PI/180.0f;
-    std::vector<cv::Point2f> pts;
-    float angle = msg->angle_min;
-    for (float range : msg->ranges) {
-        if (std::isfinite(range)
-            && range >= 0.18f && range <= 1.20f
-            && angle >= -ANG_MAX && angle <= ANG_MAX)
-        {
-            pts.emplace_back(range * std::cos(angle),
-                             range * std::sin(angle));
-        }
-        angle += msg->angle_increment;
-    }
-
-    // 4) 새로운 그룹화 알고리즘: 순차적 라바콘 검출
-    std::vector<cv::Point2f> left_group, right_group;
-    
-    // 좌측과 우측에서 가장 가까운 점 찾기
-    cv::Point2f left_first, right_first;
-    float left_min_dist = 1e6f, right_min_dist = 1e6f;
-    bool found_left = false, found_right = false;
-    
-    for (const auto& pt : pts) {
-        float dist = std::hypot(pt.x, pt.y);
-        if (pt.y > 0) { // 좌측
-            if (dist < left_min_dist) {
-                left_min_dist = dist;
-                left_first = pt;
-                found_left = true;
-            }
-        } else { // 우측
-            if (dist < right_min_dist) {
-                right_min_dist = dist;
-                right_first = pt;
-                found_right = true;
-            }
+private:
+    void createBackground() {
+        background_canvas_ = cv::Mat::zeros(window_size_, window_size_, CV_8UC3);
+        for (int r = 10; r <= 100; r += 10) {
+            int radius = int(r * (scale_/100.0f));
+            cv::circle(background_canvas_, center_, radius, {100,100,100}, 1);
         }
     }
-    
-    // L그룹 구성: 첫 번째 라바콘부터 38cm 간격으로 순차 검출
-    if (found_left) {
-        left_group.push_back(left_first);
-        cv::Point2f current = left_first;
-        const float CONE_DISTANCE = 0.38f; // 38cm
-        
-        while (left_group.size() < 3) { // 최대 3개까지
-            cv::Point2f next_cone;
-            float min_valid_dist = 1e6f;
-            bool found_next = false;
-            
-            for (const auto& pt : pts) {
-                if (pt.y <= 0) continue; // 좌측만
-                float dist_from_current = std::hypot(pt.x - current.x, pt.y - current.y);
-                float dist_from_origin = std::hypot(pt.x, pt.y);
-                
-                // 현재 라바콘보다 더 멀리 있고, 38cm 근처에 있는 점 찾기
-                if (dist_from_origin > std::hypot(current.x, current.y) + 0.1f && 
-                    std::abs(dist_from_current - CONE_DISTANCE) < 0.15f &&
-                    dist_from_origin < min_valid_dist) {
-                    
-                    // 이미 선택된 라바콘과 너무 가깝지 않은지 확인
-                    bool too_close = false;
-                    for (const auto& existing : left_group) {
-                        if (std::hypot(pt.x - existing.x, pt.y - existing.y) < 0.1f) {
-                            too_close = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!too_close) {
-                        min_valid_dist = dist_from_origin;
-                        next_cone = pt;
-                        found_next = true;
-                    }
+
+    void fastScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr& msg) {
+        cv::Mat canvas = background_canvas_.clone();
+
+        valid_points_.clear();
+        left_indices_.clear();
+        right_indices_.clear();
+
+        const float* ranges    = msg->ranges.data();
+        const size_t n         = msg->ranges.size();
+        const float a0         = msg->angle_min;
+        const float da         = msg->angle_increment;
+        const float max_ang    = 85.0f * M_PI/180.0f;
+
+        for (size_t i = 0; i < n; ++i) {
+            float r = ranges[i];
+            float ang = a0 + i*da;
+            if (r>=0.18f && r<=1.20f && ang>=-max_ang && ang<=max_ang) {
+                float x = r*std::cos(ang);
+                float y = r*std::sin(ang);
+                valid_points_.emplace_back(x,y);
+                int idx = valid_points_.size()-1;
+                (y>0? left_indices_: right_indices_).push_back(idx);
+            }
+        }
+
+        auto L = detectCones(left_indices_);
+        auto R = detectCones(right_indices_);
+
+        float tx=0, ty=0;
+        bool ok = computeTarget(L,R,tx,ty);
+
+        visualize(canvas, L, R, tx, ty, ok);
+
+        cv::imshow("Lidar View", canvas);
+        cv::waitKey(1);
+    }
+
+    std::vector<int> detectCones(const std::vector<int>& idxs) {
+        std::vector<int> cones;
+        if (idxs.empty()) return cones;
+        cones.reserve(3);
+        int best = *std::min_element(idxs.begin(), idxs.end(),
+            [&](int a,int b){
+                auto &A=valid_points_[a], &B=valid_points_[b];
+                return A.first*A.first+ A.second*A.second
+                     < B.first*B.first+ B.second*B.second;
+            });
+        cones.push_back(best);
+
+        while (cones.size()<3) {
+            auto &cur = valid_points_[cones.back()];
+            float curd = cur.first*cur.first+cur.second*cur.second;
+            int next_idx=-1;
+            float bestd=1e9f;
+            for (int i:idxs) {
+                if (std::find(cones.begin(),cones.end(),i)!=cones.end()) continue;
+                auto &p = valid_points_[i];
+                float d0 = p.first*p.first+p.second*p.second;
+                if (d0<=curd+0.01f) continue;
+                float dx=p.first-cur.first, dy=p.second-cur.second;
+                float d1=dx*dx+dy*dy;
+                if (std::abs(d1-CONE_DIST_SQ)<TOLERANCE_SQ && d0<bestd) {
+                    bestd=d0; next_idx=i;
                 }
             }
-            
-            if (found_next) {
-                left_group.push_back(next_cone);
-                current = next_cone;
-            } else {
-                break;
-            }
+            if (next_idx<0) break;
+            cones.push_back(next_idx);
+        }
+        return cones;
+    }
+
+    bool computeTarget(const std::vector<int>& L, const std::vector<int>& R,
+                       float& tx, float& ty)
+    {
+        auto mid = [&](const std::vector<int>& C,int cnt){
+            if(cnt==1) return valid_points_[C[0]];
+            float sx=0, sy=0;
+            for(int i=0;i<cnt;++i){ auto&p=valid_points_[C[i]]; sx+=p.first; sy+=p.second; }
+            return std::pair<float,float>{sx/cnt, sy/cnt};
+        };
+
+        if (L.size()>=2 && R.size()>=2) {
+            auto a=mid(L,2), b=mid(R,2);
+            tx=(a.first+b.first)/2; ty=(a.second+b.second)/2;
+        }
+        else if (L.size()==1 && R.size()>=2) {
+            auto a=mid(L,1), b=mid(R,2);
+            tx=(a.first+b.first)/2; ty=(a.second+b.second)/2;
+        }
+        else if (R.size()==1 && L.size()>=2) {
+            auto a=mid(L,2), b=mid(R,1);
+            tx=(a.first+b.first)/2; ty=(a.second+b.second)/2;
+        }
+        else return false;
+
+        return true;
+    }
+
+    void visualize(cv::Mat& C, const std::vector<int>& L, const std::vector<int>& R,
+                   float tx, float ty, bool ok)
+    {
+        for(int i:L){
+            auto &p=valid_points_[i];
+            cv::circle(C,{int(center_.x-p.second*scale_),int(center_.y-p.first*scale_)},4,{255,0,0},-1);
+        }
+        for(int i:R){
+            auto &p=valid_points_[i];
+            cv::circle(C,{int(center_.x-p.second*scale_),int(center_.y-p.first*scale_)},4,{0,0,255},-1);
+        }
+        if(ok){
+            cv::circle(C,{int(center_.x-ty*scale_),int(center_.y-tx*scale_)},8,{0,255,0},-1);
+            rubber_offset_value_ = int(-ty * OFFSET_GAIN_);
+            cv::putText(C,"Offset:"+std::to_string(rubber_offset_value_),
+                        {10,30},cv::FONT_HERSHEY_SIMPLEX,0.6,{255,255,255},1);
+        } else {
+            rubber_offset_value_ = 0;
+            cv::putText(C,"No Target",{10,30},cv::FONT_HERSHEY_SIMPLEX,0.6,{255,255,255},1);
         }
     }
-    
-    // R그룹 구성: 동일한 방식
-    if (found_right) {
-        right_group.push_back(right_first);
-        cv::Point2f current = right_first;
-        const float CONE_DISTANCE = 0.38f; // 38cm
-        
-        while (right_group.size() < 3) { // 최대 3개까지
-            cv::Point2f next_cone;
-            float min_valid_dist = 1e6f;
-            bool found_next = false;
-            
-            for (const auto& pt : pts) {
-                if (pt.y >= 0) continue; // 우측만
-                float dist_from_current = std::hypot(pt.x - current.x, pt.y - current.y);
-                float dist_from_origin = std::hypot(pt.x, pt.y);
-                
-                // 현재 라바콘보다 더 멀리 있고, 38cm 근처에 있는 점 찾기
-                if (dist_from_origin > std::hypot(current.x, current.y) + 0.1f && 
-                    std::abs(dist_from_current - CONE_DISTANCE) < 0.15f &&
-                    dist_from_origin < min_valid_dist) {
-                    
-                    // 이미 선택된 라바콘과 너무 가깝지 않은지 확인
-                    bool too_close = false;
-                    for (const auto& existing : right_group) {
-                        if (std::hypot(pt.x - existing.x, pt.y - existing.y) < 0.1f) {
-                            too_close = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!too_close) {
-                        min_valid_dist = dist_from_origin;
-                        next_cone = pt;
-                        found_next = true;
-                    }
-                }
-            }
-            
-            if (found_next) {
-                right_group.push_back(next_cone);
-                current = next_cone;
-            } else {
-                break;
-            }
-        }
-    }
+};
 
-    // 5) 그룹별 라바콘을 화면에 그리기
-    // L그룹을 파란색으로 표시
-    for (size_t i = 0; i < left_group.size(); ++i) {
-        int px = int(center.x - left_group[i].y * scale_);
-        int py = int(center.y - left_group[i].x * scale_);
-        cv::circle(canvas, {px, py}, 4, cv::Scalar(255,0,0), -1); // 파란색
-        cv::putText(canvas, "L" + std::to_string(i+1), {px+5, py-5}, 
-                   cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1);
-    }
-    
-    // R그룹을 빨간색으로 표시
-    for (size_t i = 0; i < right_group.size(); ++i) {
-        int px = int(center.x - right_group[i].y * scale_);
-        int py = int(center.y - right_group[i].x * scale_);
-        cv::circle(canvas, {px, py}, 4, cv::Scalar(0,0,255), -1); // 빨간색
-        cv::putText(canvas, "R" + std::to_string(i+1), {px+5, py-5}, 
-                   cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1);
-    }
-
-// 6) 각 그룹의 첫 번째와 두 번째 라바콘의 중점 계산 (예외 처리 포함)
-bool has_mid = false;
-cv::Point2f final_target;
-
-// 양쪽 그룹에 각각 최소 2개 이상 라바콘이 검출된 경우 (기존 로직)
-if (left_group.size() >= 2 && right_group.size() >= 2) {
-    // L그룹의 중점
-    cv::Point2f left_mid = {
-        (left_group[0].x + left_group[1].x) * 0.5f,
-        (left_group[0].y + left_group[1].y) * 0.5f
-    };
-    // R그룹의 중점
-    cv::Point2f right_mid = {
-        (right_group[0].x + right_group[1].x) * 0.5f,
-        (right_group[0].y + right_group[1].y) * 0.5f
-    };
-    // 두 중점의 중점 → 최종 목표점
-    final_target = {
-        (left_mid.x + right_mid.x) * 0.5f,
-        (left_mid.y + right_mid.y) * 0.5f
-    };
-    has_mid = true;
-
-// 예외 1) L그룹에 1개, R그룹에 2개 이상 검출된 경우
-} else if (left_group.size() == 1 && right_group.size() >= 2) {
-    // R그룹에서 두 개의 중점
-    cv::Point2f right_mid = {
-        (right_group[0].x + right_group[1].x) * 0.5f,
-        (right_group[0].y + right_group[1].y) * 0.5f
-    };
-    // L그룹의 유일한 점
-    cv::Point2f left_pt = left_group[0];
-    // 두 점의 중점 → 최종 목표점
-    final_target = {
-        (left_pt.x + right_mid.x) * 0.5f,
-        (left_pt.y + right_mid.y) * 0.5f
-    };
-    has_mid = true;
-
-// 예외 2) R그룹에 1개, L그룹에 2개 이상 검출된 경우
-} else if (right_group.size() == 1 && left_group.size() >= 2) {
-    // L그룹에서 두 개의 중점
-    cv::Point2f left_mid = {
-        (left_group[0].x + left_group[1].x) * 0.5f,
-        (left_group[0].y + left_group[1].y) * 0.5f
-    };
-    // R그룹의 유일한 점
-    cv::Point2f right_pt = right_group[0];
-    // 두 점의 중점 → 최종 목표점
-    final_target = {
-        (left_mid.x + right_pt.x) * 0.5f,
-        (left_mid.y + right_pt.y) * 0.5f
-    };
-    has_mid = true;
-}
-
-// has_mid가 true일 때만 최종 목표점을 사용하고, 그렇지 않으면 검출 실패로 처리
-if (has_mid) {
-    // final_target 활용 로직...
-} else {
-    // 검출 실패 처리 (rubber_offset_value_=0, rubber_end_value_=1 등)
-}
-
-
-    // 7) 최종 목표점 표시 및 정보 출력
-    if (has_mid) {
-        int target_px = int(center.x - final_target.y * scale_);
-        int target_py = int(center.y - final_target.x * scale_);
-        cv::circle(canvas, {target_px, target_py}, 8, cv::Scalar(0,255,0), -1); // 초록색
-        
-        float rubbercone_offset = -final_target.y * OFFSET_GAIN_;
-        rubber_offset_value_ = rubbercone_offset;
-        std::ostringstream ss;
-        ss << std::fixed << std::setprecision(2)
-           << "Target Offset: " << rubbercone_offset
-           << " | L:" << left_group.size() << " R:" << right_group.size();
-        cv::putText(
-            canvas,
-            ss.str(),
-            cv::Point(10, 30),
-            cv::FONT_HERSHEY_SIMPLEX,
-            0.6,
-            cv::Scalar(255,255,255),
-            2
-        );
-    } else {
-        cv::putText(
-            canvas,
-            "Insufficient cones detected",
-            cv::Point(10, 30),
-            cv::FONT_HERSHEY_SIMPLEX,
-            0.6,
-            cv::Scalar(255,255,255),
-            2
-        );
-    }
-
-    // 8) 화면 띄우기
-    cv::imshow("Lidar View", canvas);
-    cv::waitKey(1);
-}
-
-void LidarViewer::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
-    cv::Mat img = cv_bridge::toCvCopy(msg, "bgr8")->image;
-    cv::imshow("Camera View", img);
-    cv::waitKey(1);
-}
-
-int main(int argc, char ** argv) {
-    setenv("GDK_BACKEND", "x11", 1);
-    setenv("QT_QPA_PLATFORM", "xcb", 1);
-    rclcpp::init(argc, argv);
+int main(int argc,char**argv){
+    setenv("GDK_BACKEND","x11",1);
+    setenv("QT_QPA_PLATFORM","xcb",1);
+    rclcpp::init(argc,argv);
     rclcpp::spin(std::make_shared<LidarViewer>());
     rclcpp::shutdown();
     return 0;
