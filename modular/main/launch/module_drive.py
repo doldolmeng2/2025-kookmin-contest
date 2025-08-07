@@ -17,12 +17,6 @@ def generate_launch_description():
     )
     mode = LaunchConfiguration('mode')
 
-    motor_include = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('xycar_motor'),
-                'launch/xycar_motor.launch.py'))
-    )
     # 2) 기존 노드들
     main_node = Node(
         package='main',
@@ -96,7 +90,6 @@ def generate_launch_description():
 
     # 4) LaunchDescription 반환
     return LaunchDescription([
-        motor_include,
         mode_arg,
         main_node,
         traffic_node,

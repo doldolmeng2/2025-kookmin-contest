@@ -8,16 +8,9 @@ import os
 
 def generate_launch_description():
         
-    motor_include = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('xycar_motor'),
-                'launch/xycar_motor.launch.py'))
-    )
 
     return LaunchDescription([
         # joy_node: 조이스틱 입력 노드
-        motor_include,
         Node(
             package='joy',
             executable='joy_node',
