@@ -138,8 +138,7 @@ class MainNode(Node):
 
         # 모터 제어 메시지 퍼블리시
         motor_msg = Float32MultiArray()
-        motor_msg.angle = angle
-        motor_msg.speed = speed
+        motor_msg.data = [float(angle), float(speed)]
         self.motor_pub.publish(motor_msg)
 
         # 모드 정보 퍼블리시

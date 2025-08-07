@@ -4,7 +4,6 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Float32MultiArray
-import time
 
 class JoyToMotor(Node):
     def __init__(self):
@@ -41,8 +40,7 @@ class JoyToMotor(Node):
         angle = -100 * self.axis_0
         speed = 50 * self.axis_4
 
-        self.motor_msg.angle = float(angle)
-        self.motor_msg.speed = float(speed)
+        self.motor_msg.data = [float(angle), float(speed)]
 
         # 퍼블리시
         self.motor_pub.publish(self.motor_msg)
