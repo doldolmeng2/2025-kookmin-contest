@@ -43,7 +43,7 @@ public:
 
         scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
             "/scan", rclcpp::SensorDataQoS(),
-            [this](auto msg){ fastScanCallback(msg); });
+            [this](auto msg){ ScanCallback(msg); });
 
         image_sub_ = create_subscription<sensor_msgs::msg::Image>(
             "/image_raw", rclcpp::SensorDataQoS(),
@@ -70,7 +70,7 @@ private:
         }
     }
 
-    void fastScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr& msg) {
+    void ScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr& msg) {
         cv::Mat canvas = background_canvas_.clone();
         valid_points_.clear();
         left_indices_.clear();
