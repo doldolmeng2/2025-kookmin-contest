@@ -1,6 +1,6 @@
 #include "rubbercone/rubbercone.hpp"
 #include <cv_bridge/cv_bridge.h>
-#include <std_msgs/msg/Int32_multi_array.hpp>
+#include <std_msgs/msg/int32_multi_array.hpp>
 #include <vector>
 #include <cmath>
 #include <algorithm>
