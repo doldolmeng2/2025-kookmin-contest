@@ -1,13 +1,12 @@
+// rubbercone/src/rubbercone.cpp
 #include "rubbercone/rubbercone.hpp"
 #include <cv_bridge/cv_bridge.h>
-#include <std_msgs/msg/int32_multi_array.hpp>
 #include <vector>
 #include <cmath>
-#include <algorithm>
-#include <chrono>
 #include <sstream>
 #include <iomanip>
 #include <cstdlib>
+#include <chrono>
 
 LidarViewer::LidarViewer()
 : Node("rubbercone"),
@@ -15,17 +14,11 @@ LidarViewer::LidarViewer()
   scale_(500.0f),
   OFFSET_GAIN_(300.0f),
   rubber_offset_value_(0),
-  rubber_end_value_(0),
-  center_(window_size_/2, window_size_/2)
+  rubber_end_value_(0)
 {
-  createBackground();
-  valid_points_.reserve(500);
-  left_indices_.reserve(50);
-  right_indices_.reserve(50);
-
   scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
     "/scan", rclcpp::SensorDataQoS(),
-    std::bind(&LidarViewer::fastScanCallback, this, std::placeholders::_1)
+    std::bind(&LidarViewer::scanCallback, this, std::placeholders::_1)
   );
 
   image_sub_ = create_subscription<sensor_msgs::msg::Image>(
@@ -46,196 +39,177 @@ LidarViewer::LidarViewer()
   cv::namedWindow("Camera View", cv::WINDOW_AUTOSIZE);
 }
 
-void LidarViewer::createBackground() {
-  background_canvas_ = cv::Mat::zeros(window_size_, window_size_, CV_8UC3);
-  for (int r = 10; r <= 100; r += 10) {
-    int radius = int(r * (scale_/100.0f));
-    cv::circle(background_canvas_, center_, radius, cv::Scalar(100,100,100), 1);
-  }
+void LidarViewer::publishInfo() {
+  std_msgs::msg::Int32MultiArray msg;
+  msg.data.resize(2);
+  msg.data[0] = rubber_offset_value_;
+  msg.data[1] = rubber_end_value_;
+  info_pub_->publish(msg);
 }
 
-void LidarViewer::fastScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr& msg) {
-  cv::Mat canvas = background_canvas_.clone();
-  valid_points_.clear();
-  left_indices_.clear();
-  right_indices_.clear();
+void LidarViewer::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+  // 1) 캔버스 준비
+  cv::Mat canvas = cv::Mat::zeros(window_size_, window_size_, CV_8UC3);
+  cv::Point2f center(window_size_/2, window_size_/2);
 
-  const float* ranges = msg->ranges.data();
-  const size_t n = msg->ranges.size();
-  const float a0 = msg->angle_min;
-  const float da = msg->angle_increment;
-  const float max_ang = 85.0f * M_PI / 180.0f;
+  // 2) 10cm 단위 동심원 (10~100cm)
+  for (int r_cm = 10; r_cm <= 100; r_cm += 10) {
+    float rad_px = r_cm * (scale_ / 100.0f);
+    cv::circle(canvas, center, int(rad_px), cv::Scalar(100,100,100), 1);
+    cv::putText(canvas,
+                std::to_string(r_cm) + "cm",
+                {int(center.x + 5), int(center.y - rad_px)},
+                cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1);
+  }
 
-  for (size_t i = 0; i < n; ++i) {
-    float r = ranges[i];
-    float ang = a0 + i * da;
-    if (r >= 0.18f && r <= 1.20f && ang >= -max_ang && ang <= max_ang) {
-      float x = r * std::cos(ang);
-      float y = r * std::sin(ang);
-      valid_points_.emplace_back(x, y);
-      int idx = valid_points_.size() - 1;
-      (y > 0 ? left_indices_ : right_indices_).push_back(idx);
+  // 3) 유효 포인트 수집
+  const float ANG_MAX = 85.0f * M_PI/180.0f;
+  std::vector<cv::Point2f> pts;
+  float angle = msg->angle_min;
+  for (float range : msg->ranges) {
+    if (std::isfinite(range) &&
+        range >= 0.18f && range <= 1.20f &&
+        angle >= -ANG_MAX && angle <= ANG_MAX) {
+      pts.emplace_back(range * std::cos(angle),
+                       range * std::sin(angle));
+    }
+    angle += msg->angle_increment;
+  }
+
+  // 4) 라바콘 그룹화
+  std::vector<cv::Point2f> left_group, right_group;
+  cv::Point2f left_first, right_first;
+  float left_min=1e6f, right_min=1e6f;
+  bool found_left=false, found_right=false;
+
+  for (auto &pt : pts) {
+    float d = std::hypot(pt.x, pt.y);
+    if (pt.y>0) {
+      if (d<left_min) { left_min=d; left_first=pt; found_left=true; }
+    } else {
+      if (d<right_min) { right_min=d; right_first=pt; found_right=true; }
     }
   }
 
-  auto L = detectCones(left_indices_, !after_cone_mode_);
-  auto R = detectCones(right_indices_, !after_cone_mode_);
-
-  float tx = 0, ty = 0;
-  bool ok = computeTarget(L, R, tx, ty);
-  visualize(canvas, L, R, tx, ty, ok);
-
-  if (!after_cone_mode_ && left_indices_.empty()) {
-    after_cone_mode_ = true;
+  const float CONE_D=0.38f;
+  if (found_left) {
+    left_group.push_back(left_first);
+    cv::Point2f cur=left_first;
+    while (left_group.size()<3) {
+      cv::Point2f next; float best=1e6f; bool ok=false;
+      for (auto &pt:pts) {
+        if (pt.y<=0) continue;
+        float d0=std::hypot(pt.x,pt.y),
+              dc=std::hypot(pt.x-cur.x,pt.y-cur.y);
+        if (d0>std::hypot(cur.x,cur.y)+0.1f &&
+            std::abs(dc-CONE_D)<0.15f && d0<best) {
+          bool close=false;
+          for (auto &ex:left_group)
+            if (std::hypot(pt.x-ex.x,pt.y-ex.y)<0.1f) close=true;
+          if (!close) { best=d0; next=pt; ok=true; }
+        }
+      }
+      if (!ok) break;
+      left_group.push_back(next);
+      cur=next;
+    }
   }
 
-  if (after_cone_mode_ && right_indices_.size() >= 2) {
-    const auto& P = valid_points_[ right_indices_[0] ];
-    const auto& Q = valid_points_[ right_indices_[1] ];
-    cv::Point2f mid{ (P.first+Q.first)*0.5f, (P.second+Q.second)*0.5f };
-    cv::Point2f v{ Q.first-P.first, Q.second-P.second };
-    float inv = 1.0f/std::hypot(v.x, v.y);
-    cv::Point2f perp{ -v.y*inv, v.x*inv };
-    constexpr float OFFSET_M = 0.37f;
-    lane_target_ = { mid.x+perp.x*OFFSET_M, mid.y+perp.y*OFFSET_M };
-    lane_target_ready_ = true;
-    int lx = int(center_.x - lane_target_.y * scale_);
-    int ly = int(center_.y - lane_target_.x * scale_);
-    cv::circle(canvas, {lx, ly}, 6, cv::Scalar(0,255,255), -1);
-    cv::putText(canvas, "LaneTarget", {lx+5, ly-5},
-                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0,255,255), 1);
+  if (found_right) {
+    right_group.push_back(right_first);
+    cv::Point2f cur=right_first;
+    while (right_group.size()<3) {
+      cv::Point2f next; float best=1e6f; bool ok=false;
+      for (auto &pt:pts) {
+        if (pt.y>=0) continue;
+        float d0=std::hypot(pt.x,pt.y),
+              dc=std::hypot(pt.x-cur.x,pt.y-cur.y);
+        if (d0>std::hypot(cur.x,cur.y)+0.1f &&
+            std::abs(dc-CONE_D)<0.15f && d0<best) {
+          bool close=false;
+          for (auto &ex:right_group)
+            if (std::hypot(pt.x-ex.x,pt.y-ex.y)<0.1f) close=true;
+          if (!close) { best=d0; next=pt; ok=true; }
+        }
+      }
+      if (!ok) break;
+      right_group.push_back(next);
+      cur=next;
+    }
   }
 
-  if (left_indices_.size() <= 1 && right_indices_.size() <= 1) {
-    slow_mode_     = true;
-    current_speed_ = base_speed_ * 0.2f;
-  } else if (left_indices_.size() >= 2 && right_indices_.size() >= 2) {
-    slow_mode_     = false;
-    current_speed_ = base_speed_;
+  // 5) 그리기
+  for (size_t i=0;i<left_group.size();++i) {
+    int px=int(center.x - left_group[i].y*scale_),
+        py=int(center.y - left_group[i].x*scale_);
+    cv::circle(canvas,{px,py},4,cv::Scalar(255,0,0),-1);
+    cv::putText(canvas,"L"+std::to_string(i+1),{px+5,py-5},
+                cv::FONT_HERSHEY_SIMPLEX,0.4,cv::Scalar(255,255,255),1);
+  }
+  for (size_t i=0;i<right_group.size();++i) {
+    int px=int(center.x - right_group[i].y*scale_),
+        py=int(center.y - right_group[i].x*scale_);
+    cv::circle(canvas,{px,py},4,cv::Scalar(0,0,255),-1);
+    cv::putText(canvas,"R"+std::to_string(i+1),{px+5,py-5},
+                cv::FONT_HERSHEY_SIMPLEX,0.4,cv::Scalar(255,255,255),1);
   }
 
+  // 6) 목표점 계산
+  bool has_mid=false;
+  cv::Point2f target;
+  if (left_group.size()>=2 && right_group.size()>=2) {
+    cv::Point2f lm{(left_group[0].x+left_group[1].x)/2,
+                   (left_group[0].y+left_group[1].y)/2};
+    cv::Point2f rm{(right_group[0].x+right_group[1].x)/2,
+                   (right_group[0].y+right_group[1].y)/2};
+    target={(lm.x+rm.x)/2,(lm.y+rm.y)/2};
+    has_mid=true;
+  } else if (left_group.size()==1 && right_group.size()>=2) {
+    cv::Point2f rm{(right_group[0].x+right_group[1].x)/2,
+                   (right_group[0].y+right_group[1].y)/2};
+    target={(left_group[0].x+rm.x)/2,(left_group[0].y+rm.y)/2};
+    has_mid=true;
+  } else if (right_group.size()==1 && left_group.size()>=2) {
+    cv::Point2f lm{(left_group[0].x+left_group[1].x)/2,
+                   (left_group[0].y+left_group[1].y)/2};
+    target={(lm.x+right_group[0].x)/2,(lm.y+right_group[0].y)/2};
+    has_mid=true;
+  }
+
+  // 7) 표시 및 offset 계산
+  if (has_mid) {
+    int tx=int(center.x - target.y*scale_),
+        ty=int(center.y - target.x*scale_);
+    cv::circle(canvas,{tx,ty},8,cv::Scalar(0,255,0),-1);
+    float offset = -target.y * OFFSET_GAIN_;
+    rubber_offset_value_ = static_cast<int32_t>(offset);
+    std::ostringstream ss;
+    ss<<std::fixed<<std::setprecision(2)
+      <<"Offset: "<<offset
+      <<" | L:"<<left_group.size()
+      <<" R:"<<right_group.size();
+    cv::putText(canvas,ss.str(),{10,30},
+                cv::FONT_HERSHEY_SIMPLEX,0.6,cv::Scalar(255,255,255),2);
+  } else {
+    rubber_offset_value_ = 0;
+    cv::putText(canvas,"Insufficient cones detected",{10,30},
+                cv::FONT_HERSHEY_SIMPLEX,0.6,cv::Scalar(255,255,255),2);
+  }
+
+  // 8) 화면 출력
   cv::imshow("Lidar View", canvas);
   cv::waitKey(1);
 }
 
-std::vector<int> LidarViewer::detectCones(const std::vector<int>& idxs, bool use_base_tol) {
-  float tol_sq = use_base_tol ? BASE_TOLERANCE_SQ : AFTER_TOLERANCE_SQ;
-  std::vector<int> cones;
-  if (idxs.empty()) return cones;
-  cones.reserve(5);
-  int best = *std::min_element(idxs.begin(), idxs.end(),
-    [&](int a,int b) {
-      auto &A = valid_points_[a], &B = valid_points_[b];
-      return A.first*A.first + A.second*A.second
-           < B.first*B.first + B.second*B.second;
-    }
-  );
-  cones.push_back(best);
-
-  while (cones.size() < 5) {
-    auto &c = valid_points_[cones.back()];
-    float cd = c.first*c.first + c.second*c.second;
-    int ni = -1;
-    float bd = 1e9f;
-    for (int i : idxs) {
-      if (std::find(cones.begin(), cones.end(), i) != cones.end()) continue;
-      auto &p = valid_points_[i];
-      float d0 = p.first*p.first + p.second*p.second;
-      if (d0 <= cd + 0.01f) continue;
-      float dx = p.first - c.first, dy = p.second - c.second;
-      float d1 = dx*dx + dy*dy;
-      if (std::abs(d1 - CONE_DIST_SQ) < tol_sq && d0 < bd) {
-        bd = d0; ni = i;
-      }
-    }
-    if (ni < 0) break;
-    cones.push_back(ni);
-  }
-  return cones;
-}
-
-bool LidarViewer::computeTarget(const std::vector<int>& L,
-                                const std::vector<int>& R,
-                                float& tx, float& ty) {
-  auto mid = [&](auto &C, int cnt) {
-    if (cnt == 1) return valid_points_[C[0]];
-    float sx = 0, sy = 0;
-    for (int i = 0; i < cnt; ++i) {
-      auto &p = valid_points_[C[i]];
-      sx += p.first; sy += p.second;
-    }
-    return std::pair<float,float>{sx/cnt, sy/cnt};
-  };
-
-  if (L.size() >= 2 && R.size() >= 2) {
-    auto a = mid(L,2), b = mid(R,2);
-    tx = (a.first + b.first) * 0.5f;
-    ty = (a.second + b.second) * 0.5f;
-  } else if (L.size() == 1 && R.size() >= 2) {
-    auto a = mid(L,1), b = mid(R,2);
-    tx = (a.first + b.first) * 0.5f;
-    ty = (a.second + b.second) * 0.5f;
-  } else if (R.size() == 1 && L.size() >= 2) {
-    auto a = mid(L,2), b = mid(R,1);
-    tx = (a.first + b.first) * 0.5f;
-    ty = (a.second + b.second) * 0.5f;
-  } else {
-    return false;
-  }
-  return true;
-}
-
-void LidarViewer::visualize(cv::Mat& C,
-                            const std::vector<int>& L,
-                            const std::vector<int>& R,
-                            float tx, float ty, bool ok) {
-  for (int i : L) {
-    auto &p = valid_points_[i];
-    cv::circle(C, {int(center_.x - p.second*scale_),
-                   int(center_.y - p.first*scale_)},
-               4, cv::Scalar(255,0,0), -1);
-  }
-  for (int i : R) {
-    auto &p = valid_points_[i];
-    cv::circle(C, {int(center_.x - p.second*scale_),
-                   int(center_.y - p.first*scale_)},
-               4, cv::Scalar(0,0,255), -1);
-  }
-  if (ok) {
-    cv::circle(C, {int(center_.x - ty*scale_),
-                   int(center_.y - tx*scale_)},
-               8, cv::Scalar(0,255,0), -1);
-    rubber_offset_value_ = int(-ty * OFFSET_GAIN_);
-    cv::putText(C, "Offset:" + std::to_string(rubber_offset_value_),
-                {10,30}, cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255,255,255), 1);
-  } else {
-    rubber_offset_value_ = 0;
-    cv::putText(C, "No Target", {10,30},
-                cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255,255,255), 1);
-  }
-}
-
-void LidarViewer::publishInfo() {
-  std_msgs::msg::Int32MultiArray msg;
-  msg.data.resize(6);
-  msg.data[0] = rubber_offset_value_;
-  msg.data[1] = rubber_end_value_;
-  msg.data[2] = slow_mode_ ? int(current_speed_*100) : int(base_speed_*100);
-  msg.data[3] = lane_target_ready_ ? int(lane_target_.x*100) : 0;
-  msg.data[4] = lane_target_ready_ ? int(lane_target_.y*100) : 0;
-  msg.data[5] = after_cone_mode_ ? 1 : 0;
-  info_pub_->publish(msg);
-}
-
-void LidarViewer::imageCallback(const sensor_msgs::msg::Image::SharedPtr& msg) {
-  cv::Mat img = cv_bridge::toCvCopy(msg, "bgr8")->image;
+void LidarViewer::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
+  cv::Mat img = cv_bridge::toCvCopy(msg,"bgr8")->image;
   cv::imshow("Camera View", img);
   cv::waitKey(1);
 }
 
-int main(int argc, char **argv) {
-  setenv("GDK_BACKEND", "x11", 1);
-  setenv("QT_QPA_PLATFORM", "xcb", 1);
+int main(int argc, char** argv) {
+  setenv("GDK_BACKEND","x11",1);
+  setenv("QT_QPA_PLATFORM","xcb",1);
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<LidarViewer>());
   rclcpp::shutdown();
