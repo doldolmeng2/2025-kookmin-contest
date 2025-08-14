@@ -202,7 +202,9 @@ void LidarViewer::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
     cv::Point2f mid{(R0.x + R1.x) * 0.5f, (R0.y + R1.y) * 0.5f};
     cv::Point2f v{R1.x - R0.x, R1.y - R0.y};
     float norm = std::hypot(v.x, v.y);
-    
+    RCLCPP_DEBUG(this->get_logger(), 
+                 "Right group: (%.3f, %.3f) to (%.3f, %.3f), norm = %.3f",
+                 R0.x, R0.y, R1.x, R1.y, norm);
     if (norm > 1e-6f) {  // 0으로 나누기 방지
       cv::Point2f u{-v.y / norm, v.x / norm};
       float d = 0.37f;
@@ -210,8 +212,12 @@ void LidarViewer::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
       has_mid = true;
     }
     
+    
   } else {
     rubber_end_value_ = 1;
+    RCLCPP_INFO(this->get_logger(), 
+                "rubber_end_value_ = 1, lane_detection_ = 0 (L:%zu, R:%zu)",
+                left_group.size(), right_group.size());
   }
 
   // offset 값 업데이트
