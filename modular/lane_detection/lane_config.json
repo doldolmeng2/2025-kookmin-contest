@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "note": "White = Lab/YCrCb, Yellow = HLS/HSV",
+  "white_mask": {
+    "roi_bottom_pct": 0,
+    "roi_top_pct": 30,
+    "lab":  { "l": [201, 255], "a": [110, 131], "b": [110, 131] },
+    "ycrcb": { "y": [193, 255], "cr": [106, 140], "cb": [106, 144] },
+    "visualize": true
+  },
+  "yellow_mask": {
+    "roi_bottom_pct": 0,
+    "roi_top_pct": 30,
+    "hls": { "h": [21, 40], "l": [120, 255], "s": [64, 255] },
+    "hsv": { "h": [21, 40], "s": [52, 255], "v": [64, 255] },
+    "visualize": true
+  },
+  "white_image": { "copy_input": true },
+  "yellow_image": {
+    "open_kernel": 3,
+    "close_kernel": 5,
+    "open_iters": 1,
+    "close_iters": 1,
+    "sobel": { "ksize": 3, "scale": 1.0, "delta": 0.0, "thresh": 30 }
+  }
+}

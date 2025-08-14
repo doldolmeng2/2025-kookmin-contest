@@ -1,413 +1,243 @@
-#include <iostream>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <std_msgs/msg/int16.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
-#include "std_msgs/msg/int16.hpp"
-#include "std_msgs/msg/int32_multi_array.hpp"
-#include "parameter_loader.hpp"
-#include <opencv2/core/version.hpp>
+#include <string>
+#include <cmath>
 
-using namespace std;
-using namespace cv;
+#include "lane_detection/config_types.hpp"
+#include "lane_detection/config_io.hpp"
+#include "lane_detection/preprocess.hpp"
+#include "lane_detection/offset_calculate.hpp"
 
-struct LaneLines {
-    Vec2f left_fit;
-    Vec2f right_fit;
-    Vec2f center_fit;
-};
+using std::placeholders::_1;
 
-class LaneDetector : public rclcpp::Node {
+namespace {
+inline int16_t clamp_i16(long v) {
+    if (v > 32767) return 32767;
+    if (v < -32768) return -32768;
+    return static_cast<int16_t>(v);
+}
+}
+
+class LaneDetectionNode : public rclcpp::Node {
 public:
-    LaneDetector(const Config& config) 
-    : Node("lane_detector_node"), config_(config),
-    lane_mode_(config_.lane_mode),
-    frame_width_(config_.frame_width), // 필요 시 config에서 불러올 수도 있음
-    frame_height_(config_.frame_height),
-    roi_height_(static_cast<int>(frame_height_ * config_.roi_height_coefficient)),
-    roi_top_width_(static_cast<int>(frame_width_ * config_.roi_top_width_coefficient)),
-    roi_bottom_width_(static_cast<int>(frame_width_ * config_.roi_bottom_width_coefficient)),
-    center_reference_lane_one_(config_.center_reference_lane_one),
-    center_reference_lane_two_(config_.center_reference_lane_two)
+    LaneDetectionNode()
+    : Node("lane_detection")
     {
-        RCLCPP_INFO(this->get_logger(), "roi_bottom_width_: %d", roi_bottom_width_);
-        image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/resized_image", 10,
-            std::bind(&LaneDetector::imageCallback, this, std::placeholders::_1)
-        );
-        mode_sub_ = this->create_subscription<std_msgs::msg::Int32MultiArray>(
-            "/mode_info", 10,
-            std::bind(&LaneDetector::modeCallback, this, std::placeholders::_1)
-        );
-        offset_pub_ = this->create_publisher<std_msgs::msg::Int16>("/lane_offset", 10);
-    }
+        // 기본 파라미터
+        this->declare_parameter<std::string>("config_path", "/home/doldolmeng2/xycar_ws/src/orda/modular/lane_detection/lane_config.json");
+        this->declare_parameter<bool>("show_debug", false);
 
-    Mat applyTrapezoidROI(const Mat& frame, int top_width, int bottom_width, int height) {
-        Mat mask = Mat::zeros(frame.size(), CV_8UC1);
+        config_path_ = this->get_parameter("config_path").as_string();
+        show_debug_  = this->get_parameter("show_debug").as_bool();
 
-        int center_x = frame_width_ / 2;
-        int bottom_y = frame_height_;
-        int top_y = frame_height_ - height;
-
-        // 꼭짓점 계산
-        Point pts[1][4];
-        pts[0][0] = Point(center_x - top_width / 2, top_y);       // 좌상
-        pts[0][1] = Point(center_x + top_width / 2, top_y);       // 우상
-        pts[0][2] = Point(center_x + bottom_width / 2, bottom_y); // 우하
-        pts[0][3] = Point(center_x - bottom_width / 2, bottom_y); // 좌하
-
-        const Point* ppt[1] = { pts[0] };
-        int npt[] = { 4 };
-
-        // 흰색 채우기
-        fillPoly(mask, ppt, npt, 1, Scalar(255));
-
-        // ROI 적용 (흰 영역만 남기기)
-        Mat roi_applied;
-        frame.copyTo(roi_applied, mask);
-
-        return roi_applied;
-    }
-
-    std::vector<Point> detectLaneFromMask(const Mat& binary_mask, const std::string& mask_type, bool is_left, Mat& debug_window_vis) {
-        int roi_y_start = frame_height_ - roi_height_;
-        int roi_y_end = frame_height_;
-
-        // 히스토그램 기반 시작점
-        Mat roi_mask = binary_mask(Rect(0, roi_y_start, frame_width_, roi_height_));
-        std::vector<int> histogram(frame_width_, 0);
-        for (int x = 0; x < frame_width_; ++x) {
-            histogram[x] = countNonZero(roi_mask.col(x));
-        }
-        
-        // 2. 시작점 계산
-        int base_x;
-        if (mask_type == "white") {
-            int midpoint = frame_width_ / 2;
-            base_x = is_left
-                ? std::distance(histogram.begin(), std::max_element(histogram.begin(), histogram.begin() + midpoint))
-                : std::distance(histogram.begin(), std::max_element(histogram.begin() + midpoint, histogram.end()));
-        } else if (mask_type == "yellow") {
-            base_x = std::distance(histogram.begin(), std::max_element(histogram.begin(), histogram.end()));
+        // 전처리용 설정(JSON)
+        std::string err; bool loaded = false;
+        cfg_ = lane::config::io::LoadOrDefault(config_path_, &loaded, &err);
+        if (!loaded) {
+            RCLCPP_WARN(get_logger(), "Config load failed, using defaults. %s", err.c_str());
         } else {
-            std::cerr << "Invalid mask_type: " << mask_type << std::endl;
-            return {};
+            RCLCPP_INFO(get_logger(), "Config loaded: %s", config_path_.c_str());
         }
 
-        // Sliding window 파라미터
-        int num_windows = config_.sliding_window_num_windows;  // 블록 개수
-        int margin = config_.sliding_window_margin; // 탐색 범위(블록 width)
-        const size_t minpix = config_.sliding_window_minpix; // 유효한 픽셀이 minpix 이상이면 중심 좌표 업데이트
-        int window_height = roi_height_ / num_windows;
+        // (mask_tuner와 동일) 직선/오프셋 검출 파라미터를 ROS 파라미터로 선언/적용
+        declare_detect_params();
+        update_detect_params_from_node();
 
-        std::vector<Point> lane_points;
-        int x_current = base_x;
-
-        for (int win = 0; win < num_windows; ++win) {
-            int win_y_low = roi_y_end - (win + 1) * window_height;
-            int win_y_high = roi_y_end - win * window_height;
-            int win_x_low = x_current - margin;
-            int win_x_high = x_current + margin;
-
-            // 시각화용 사각형 그리기
-            rectangle(debug_window_vis, Point(win_x_low, win_y_low), Point(win_x_high, win_y_high),
-                    Scalar(0, 255, 255), 1);  // 노란색 선
-
-            std::vector<int> nonzero_x;
-            for (int y = win_y_low; y < win_y_high; ++y) {
-                for (int x = win_x_low; x < win_x_high; ++x) {
-                    if (x >= 0 && x < frame_width_ && binary_mask.at<uchar>(y, x) > 0) {
-                        lane_points.emplace_back(x, y);
-                        nonzero_x.push_back(x);
-                    }
-                }
-            }
-
-            if (nonzero_x.size() > minpix) {
-                int sum_x = std::accumulate(nonzero_x.begin(), nonzero_x.end(), 0);
-                x_current = sum_x / static_cast<int>(nonzero_x.size());
-            }
+        if (show_debug_) {
+            cv::namedWindow("LD White",   cv::WINDOW_NORMAL);
+            cv::namedWindow("LD Yellow",  cv::WINDOW_NORMAL);
+            cv::namedWindow("LD Y-Post",  cv::WINDOW_NORMAL);
+            cv::namedWindow("LD Overlay", cv::WINDOW_NORMAL);
+            cv::resizeWindow("LD White",   640, 360);
+            cv::resizeWindow("LD Yellow",  640, 360);
+            cv::resizeWindow("LD Y-Post",  640, 360);
+            cv::resizeWindow("LD Overlay", 800, 450);
         }
 
-        return lane_points;
+        // publisher: lane_offset(Int16)
+        pub_offset_ = this->create_publisher<std_msgs::msg::Int16>("lane_offset", 10);
+
+        // subscribers
+        sub_img_ = this->create_subscription<sensor_msgs::msg::Image>(
+            "/resized_image", rclcpp::SensorDataQoS(),
+            std::bind(&LaneDetectionNode::imageCb, this, _1)
+        );
+        sub_mode_ = this->create_subscription<std_msgs::msg::String>(
+            "mode_info", 10, std::bind(&LaneDetectionNode::modeCb, this, _1)
+        );
+
+        RCLCPP_INFO(get_logger(), "lane_detection ready. show_debug=%d", show_debug_);
     }
 
-    LaneLines detectLanes(const Mat& white_mask, const Mat& yellow_mask, const Mat& resized_img) {
-        Mat debug_img = resized_img.clone();
-        // 흰색 왼쪽 차선
-        auto white_left_points = detectLaneFromMask(white_mask, "white", true, debug_img);
-
-        // 흰색 오른쪽 차선
-        auto white_right_points = detectLaneFromMask(white_mask, "white", false, debug_img);
-
-        // 노란 중앙선
-        auto yellow_points = detectLaneFromMask(yellow_mask, "yellow", false, debug_img);
-
-        // 3. 피팅
-        Vec2f left_fit = fitLineLinear(white_left_points);
-        Vec2f right_fit = fitLineLinear(white_right_points);
-        Vec2f center_fit = fitLineLinear(yellow_points);
-
-        // imshow("Sliding Windows", debug_img);
-        waitKey(1);
-
-        return { left_fit, right_fit, center_fit };
-    }
-
-    Vec2f fitLineLinear(const std::vector<Point>& points) {
-        if (points.size() < 2) return Vec2f(0, 0); // 최소 2점 필요
-
-        Mat X(points.size(), 2, CV_32F);
-        Mat Y(points.size(), 1, CV_32F);
-
-        for (size_t i = 0; i < points.size(); ++i) {
-            float y = static_cast<float>(points[i].y);
-            X.at<float>(i, 0) = y;
-            X.at<float>(i, 1) = 1;
-            Y.at<float>(i, 0) = static_cast<float>(points[i].x);
-        }
-
-        Mat coeffs;
-        solve(X, Y, coeffs, DECOMP_SVD);  // [m, b] 반환
-
-        return Vec2f(coeffs.at<float>(0), coeffs.at<float>(1)); // m, b
-    }
-
-    float calculateOffsetByIntersection(const Vec2f& line1, const Vec2f& line2) {
-        float m1 = line1[0], b1 = line1[1];
-        float m2 = line2[0], b2 = line2[1];
-
-        if (std::abs(m1 - m2) < 1e-5f) {
-            // 기울기가 같아서 교차하지 않음 (평행)
-            return 0.0f;
-        }
-
-        float y = (b2 - b1) / (m1 - m2);
-        float x = m1 * y + b1;
-
-        float image_center_x = static_cast<float>(frame_width_) / 2.0f;
-        return x - image_center_x;
-    }
-
-    float calculateOffsetByCenterLane(const cv::Vec2f& line1, LaneMode lane_mode) {
-        float slope = line1[0];
-        float intercept = line1[1];
-
-        // y 좌표 기준 
-        float y1 = frame_height_ * 0.5f;
-        float y2 = frame_height_ * 0.8f;
-        // float y3 = frame_height_ * 0.75f;
-
-        // 각각의 y값에서 x 좌표를 계산 (x = m*y + b)
-        float x1 = slope * y1 + intercept;
-        float x2 = slope * y2 + intercept;
-        // float x3 = (y3 - intercept) / slope;
-
-        float x_sum = x1 + x2;
-
-        // 기준값 설정 (lane_mode에 따라 다르게), 중앙선이 있어야 할 자리를 정해둠
-        float reference = 0.0f;
-        if (lane_mode == LaneMode::LANE_ONE) {
-            reference = frame_width_ * center_reference_lane_one_;
-        } else if (lane_mode == LaneMode::LANE_TWO) {
-            reference = frame_width_ * center_reference_lane_two_;
-        }
-
-        // 참고: 중앙선이 오른쪽으로 가게 하려면 내가 왼쪽으로 이동해야 함.
-        float offset = x_sum - reference;
-
-        return offset;
-    }
-
-    void drawLaneLine(Mat& img, const Vec2f& coeffs, const Scalar& color) {
-        float m = coeffs[0];
-        float b = coeffs[1];
-        Point pt1, pt2;
-
-        pt1.y = 0;
-        pt1.x = static_cast<int>(m * pt1.y + b);
-
-        pt2.y = img.rows;
-        pt2.x = static_cast<int>(m * pt2.y + b);
-
-        line(img, pt1, pt2, color, 2);
-    }
-
-    std::pair<Mat, Mat> preprocessImage(const Mat& frame) {
-        Mat roi_frame = applyTrapezoidROI(frame, roi_top_width_, roi_bottom_width_, roi_height_);
-        Mat blurred, hsv;
-        GaussianBlur(roi_frame, blurred, Size(config_.gaussian_blur_kernel_size, config_.gaussian_blur_kernel_size), 0);
-        cvtColor(roi_frame, hsv, COLOR_BGR2HSV);
-
-        // --- Yellow 처리: 그대로 유지 ---
-        Mat yellow_mask, thick_edges_yellow, edges_yellow;
-        inRange(hsv,
-                Scalar(config_.yellow_min_h, config_.yellow_min_s, config_.yellow_min_v),
-                Scalar(config_.yellow_max_h, config_.yellow_max_s, config_.yellow_max_v),
-                yellow_mask);
-
-        Mat kernel_yellow_closing = getStructuringElement(MORPH_RECT, Size(config_.kernel_yellow_closing_size, config_.kernel_yellow_closing_size));
-        morphologyEx(yellow_mask, thick_edges_yellow, MORPH_CLOSE, kernel_yellow_closing);
-
-        Mat kernel_yellow_opening = getStructuringElement(MORPH_RECT, Size(config_.kernel_yellow_opening_size, config_.kernel_yellow_opening_size));
-        morphologyEx(thick_edges_yellow, thick_edges_yellow, MORPH_OPEN, kernel_yellow_opening);
-
-        cv::Canny(thick_edges_yellow, edges_yellow, config_.canny_yellow_low_threshold, config_.canny_yellow_high_threshold);
-
-        // --- White 처리: Blur→Canny / HSV→Mask → and ---
-        Mat edges_white_raw, thick_edges_white, white_mask, edges_white_final;
-
-        // 1. Blur → Canny
-        cv::Canny(blurred, edges_white_raw, config_.canny_white_low_threshold, config_.canny_white_high_threshold);
-
-        // 2. Morphology (closing + opening)
-        Mat kernel_white_closing = getStructuringElement(MORPH_RECT, Size(config_.kernel_white_closing_size, config_.kernel_white_closing_size));
-        morphologyEx(edges_white_raw, thick_edges_white, MORPH_CLOSE, kernel_white_closing);
-
-        Mat kernel_white_opening = getStructuringElement(MORPH_RECT, Size(config_.kernel_white_opening_size, config_.kernel_white_opening_size));
-        morphologyEx(thick_edges_white, thick_edges_white, MORPH_OPEN, kernel_white_opening);
-
-        // 3. HSV → white mask
-        inRange(hsv,
-                Scalar(config_.white_min_h, config_.white_min_s, config_.white_min_v),
-                Scalar(config_.white_max_h, config_.white_max_s, config_.white_max_v),
-                white_mask);
-
-        // 4. 최종 white edge = and(thick_edges_white, white_mask)
-        cv::bitwise_and(thick_edges_white, white_mask, edges_white_final);
-
-        // 디버깅용 출력 (필요 시)
-        // imshow("White Edge Final", edges_white_final);
-        // imshow("Yellow Edge Final", edges_yellow);
-        waitKey(1);
-
-        return { edges_white_final, edges_yellow };
-    }
-
-    void drawLaneOffsetSlider(const cv::Mat& resized_img, int frame_width_, float offset, LaneMode lane_mode_) {
-        // 슬라이더 이미지 생성 (길이: frame_width_, 높이: 50)
-        int slider_width = frame_width_;
-        int slider_height = 50;
-        Mat slider(slider_height, slider_width, CV_8UC3, Scalar(50, 50, 50));
-
-        // 중앙선 그리기
-        line(slider, Point(slider_width/2, 0), Point(slider_width/2, slider_height), Scalar(150, 150, 150), 1);
-
-        // offset 시각화용 점 그리기
-        int center_x = slider_width / 2;
-        int dot_x = static_cast<int>(center_x + offset);  // offset을 그대로 픽셀로 사용
-        dot_x = std::max(0, std::min(slider_width - 1, dot_x));  // 이미지 경계 안으로 클램프
-        circle(slider, Point(dot_x, slider_height/2), 6, Scalar(0, 0, 255), -1);
-
-        // 🟡 텍스트 추가: 현재 차선 모드 + offset 값
-        std::string mode_str = (lane_mode_ == LaneMode::LANE_ONE) ? "Mode: 1-Lane" : "Mode: 2-Lane";
-        std::string offset_str = "Offset: " + std::to_string(offset);
-        
-        // 텍스트 출력 위치 (왼쪽 위에 나란히 표시)
-        int font_face = cv::FONT_HERSHEY_SIMPLEX;
-        double font_scale = 0.6;
-        int thickness = 1;
-
-        putText(slider, mode_str, Point(10, 20), font_face, font_scale, Scalar(200, 200, 200), thickness);
-        putText(slider, offset_str, Point(10, 40), font_face, font_scale, Scalar(200, 200, 200), thickness);
-
-        // 디버그 출력
-        // 위쪽에 offset 슬라이더를 그리고 아래에 영상 보여주기
-        Mat combined;
-        vconcat(slider, resized_img, combined);  // slider가 위, resized_img가 아래
-        // imshow("Lane View + Offset", combined);
-        waitKey(1);
+    ~LaneDetectionNode() override {
+        if (show_debug_) cv::destroyAllWindows();
     }
 
 private:
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
-    rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr mode_sub_;
-    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr offset_pub_;
-    rclcpp::TimerBase::SharedPtr lane_change_timer_;
-    Config config_;
-    LaneMode lane_mode_;
-    int frame_width_;
-    int frame_height_;
-    int roi_height_;
-    int roi_top_width_;
-    int roi_bottom_width_;
-    bool lane_change_;
-    float center_reference_lane_one_;
-    float center_reference_lane_two_;
+    // ROS
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_img_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr   sub_mode_;
+    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr       pub_offset_;
 
-    void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
+    // 전처리 설정(JSON)
+    lane::config::LaneConfig cfg_;
+    std::string config_path_;
+    bool show_debug_ = false;
+
+    // 라인/오프셋 검출 파라미터 (mask_tuner와 동일하게 ROS 파라미터에서 받음)
+    lane::offset::DetectParams dp_;
+
+    // offset 유지
+    bool    have_last_offset_ = false;
+    int16_t last_offset_i16_  = 0;
+
+    // mode_info 저장용(지금은 저장만)
+    std::string mode_ = "unknown";
+    int lane_mode_ = 1; // 0: 1차선, 1: 2차선
+
+    // ---- mode_info ----
+    void modeCb(const std_msgs::msg::String::SharedPtr msg) {
+        // 기대 포맷: "mode,lane" (예: "auto,1")
+        const std::string s = msg->data;
+        auto comma = s.find(',');
+        if (comma == std::string::npos) {
+            mode_ = s; // lane 값은 유지
+        } else {
+            mode_ = s.substr(0, comma);
+            try { lane_mode_ = std::stoi(s.substr(comma + 1)); } catch (...) {}
+        }
+        // 지금은 저장만
+    }
+
+    // ---- image ----
+    void imageCb(const sensor_msgs::msg::Image::SharedPtr msg) {
+        cv::Mat bgr;
         try {
-            // ROS 이미지 → OpenCV Mat
-            cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-            Mat resized_img = cv_ptr->image;
-
-            // 전처리
-            auto [white_mask, yellow_mask] = preprocessImage(resized_img);
-
-            // 차선 검출
-            // 주의! x = m·y + b을 모델링하고(y=mx+b가 아님!!), m,b를 넘겨주는 것임.
-            // 차선이나 객체의 수직 형태를 모델링할 때 적합한 방식이라서 사용함.
-            LaneLines lines = detectLanes(white_mask, yellow_mask, resized_img);
-
-            // 차선 곡선 그리기
-            drawLaneLine(resized_img, lines.left_fit, Scalar(255, 0, 0));    // 왼쪽 차선: 파랑
-            drawLaneLine(resized_img, lines.center_fit, Scalar(0, 255, 0));  // 중앙 노란선: 초록
-            drawLaneLine(resized_img, lines.right_fit, Scalar(0, 0, 255));   // 오른쪽 차선: 빨강
-
-            float offset;
-            if (lane_change_){  // for test: lane_change_ -> true
-                offset = calculateOffsetByCenterLane(lines.center_fit, lane_mode_);
-            } else {
-                if (lane_mode_ == LaneMode::LANE_ONE) {
-                    offset = calculateOffsetByIntersection(lines.left_fit, lines.center_fit);
-                } else {
-                    offset = calculateOffsetByIntersection(lines.center_fit, lines.right_fit);
-                }
-            }
-
-            if (offset > 400){
-                offset = 400;
-            } else if (offset < -400){
-                offset = -400;
-            }
-
-            // offset 퍼블리시
-            std_msgs::msg::Int16 offset_msg;
-            offset_msg.data = static_cast<int16_t>(offset);
-            offset_pub_->publish(offset_msg);
-    
-            // 조향각 시각화
-            drawLaneOffsetSlider(resized_img, frame_width_, offset, lane_mode_);
-        } catch (cv_bridge::Exception& e) {
-            RCLCPP_ERROR(this->get_logger(), "cv_bridge 예외: %s", e.what());
+            bgr = cv_bridge::toCvShare(msg, "bgr8")->image;
+        } catch (const std::exception& e) {
+            RCLCPP_WARN(get_logger(), "cv_bridge: %s", e.what());
             return;
+        }
+        if (bgr.empty()) return;
+
+        // (선택) 런타임에 det.* 파라미터가 바뀌었을 수 있으므로 매 콜백에서 갱신
+        update_detect_params_from_node();
+
+        // --- Preprocess (lane_config.json 기반) ---
+        // White (Lab -> YCrCb 직렬)
+        cv::Mat w_mask, w_vis;
+        lane::preprocess::WMaskProcessor(
+            bgr, cfg_.white_mask, w_mask,
+            cfg_.white_mask.visualize ? &w_vis : nullptr
+        );
+
+        // Yellow (HLS -> HSV 직렬)
+        cv::Mat y_mask, y_vis;
+        lane::preprocess::YMaskProcessor(
+            bgr, cfg_.yellow_mask, y_mask,
+            cfg_.yellow_mask.visualize ? &y_vis : nullptr
+        );
+
+        // Yellow Post (Open/Close + Sobel X)
+        cv::Mat y_post;
+        lane::preprocess::YImageProcessor(y_mask, cfg_.yellow_image, y_post);
+
+        // --- 오프셋 계산 (offset_calculate.* 사용) ---
+        cv::Mat overlay = bgr.clone();
+
+        // 흰 라인
+        lane::offset::LineFit wline = lane::offset::WLineCalculate(w_mask, overlay, dp_);
+
+        // 노란 라인(후처리 결과 우선)
+        const cv::Mat& y_input = (y_post.empty() ? y_mask : y_post);
+        lane::offset::OffsetViz ov{};
+        lane::offset::LineFit yline = lane::offset::YLineCalculate(y_input, overlay, dp_, &wline, &ov);
+
+        // --- lane_offset 퍼블리시(Int16) ---
+        std_msgs::msg::Int16 out;
+        if (ov.valid) {
+            int16_t v = clamp_i16(std::lround(ov.offset_px));
+            out.data = v;
+            last_offset_i16_ = v;
+            have_last_offset_ = true;
+        } else if (have_last_offset_) {
+            out.data = last_offset_i16_;
+        } else {
+            out.data = 0; // 초기값
+        }
+        pub_offset_->publish(out);
+
+        // --- 디버그 표시 ---
+        if (show_debug_) {
+            if (!w_vis.empty()) cv::imshow("LD White", w_vis);
+            else                cv::imshow("LD White", bgr);
+
+            if (!y_vis.empty()) cv::imshow("LD Yellow", y_vis);
+            else                cv::imshow("LD Yellow", bgr);
+
+            if (!y_post.empty()) cv::imshow("LD Y-Post", y_post);
+
+            cv::imshow("LD Overlay", overlay);
+            (void)cv::waitKey(1);
         }
     }
 
-    void modeCallback(const std_msgs::msg::Int32MultiArray::SharedPtr msg) {
-        if (msg->data[0] == 3){ // data는 [mode, lane] 형식임. mode 3: 차선주행, mode 4: 장애물 접근, mode 5: 차선 변경 모드, lane 0: 1차선, mode 1: 2차선    
-            lane_change_ = false;
-        } else if (msg->data[0] == 5){ // data는 [mode, lane] 형식임. mode 3: 차선주행, mode 4: 장애물 접근, mode 5: 차선 변경 모드, lane 0: 1차선, mode 1: 2차선
-            if (msg->data[1] == 0){
-                lane_mode_ = LaneMode::LANE_ONE;
-            } else {
-                lane_mode_ = LaneMode::LANE_TWO;
-            }
-            lane_change_ = true;
-        }
+    // ---- DetectParams: mask_tuner와 동일 ----
+    void declare_detect_params() {
+        this->declare_parameter<int>("det.canny_low", 0);
+        this->declare_parameter<int>("det.canny_high", 0);
+        this->declare_parameter<int>("det.canny_aperture", 3);
+
+        this->declare_parameter<double>("det.rho", 1.0);
+        this->declare_parameter<double>("det.theta_deg", 1.0); // degrees
+        this->declare_parameter<int>("det.hough_thresh", 30);
+        this->declare_parameter<double>("det.min_line_length", 60.0);
+        this->declare_parameter<double>("det.max_line_gap", 10.0);
+
+        // 화이트: 우하단 시작 ROI
+        this->declare_parameter<double>("det.start_x_min_frac", 0.55);
+        this->declare_parameter<double>("det.start_x_max_frac", 0.98);
+        this->declare_parameter<double>("det.start_y_min_frac", 0.60);
+        this->declare_parameter<double>("det.start_y_max_frac", 0.98);
+
+        // 노란 라인 보정(브리징/각도/유지 프레임 등)
+        this->declare_parameter<int>("det.yellow_bridge_kernel", 5);
+        this->declare_parameter<double>("det.y_angle_min_deg", 15.0);
+        this->declare_parameter<double>("det.y_angle_max_deg", 88.0);
+        this->declare_parameter<int>("det.hold_frames", 8);
+    }
+
+    void update_detect_params_from_node() {
+        dp_.canny_low  = this->get_parameter("det.canny_low").as_int();
+        dp_.canny_high = this->get_parameter("det.canny_high").as_int();
+        dp_.canny_aperture = this->get_parameter("det.canny_aperture").as_int();
+
+        dp_.rho   = this->get_parameter("det.rho").as_double();
+        double theta_deg = this->get_parameter("det.theta_deg").as_double();
+        dp_.theta = theta_deg * CV_PI / 180.0;
+        dp_.hough_thresh    = this->get_parameter("det.hough_thresh").as_int();
+        dp_.min_line_length = this->get_parameter("det.min_line_length").as_double();
+        dp_.max_line_gap    = this->get_parameter("det.max_line_gap").as_double();
+
+        dp_.start_x_min_frac = this->get_parameter("det.start_x_min_frac").as_double();
+        dp_.start_x_max_frac = this->get_parameter("det.start_x_max_frac").as_double();
+        dp_.start_y_min_frac = this->get_parameter("det.start_y_min_frac").as_double();
+        dp_.start_y_max_frac = this->get_parameter("det.start_y_max_frac").as_double();
+
+        dp_.yellow_bridge_kernel = this->get_parameter("det.yellow_bridge_kernel").as_int();
+        dp_.y_angle_min_deg = this->get_parameter("det.y_angle_min_deg").as_double();
+        dp_.y_angle_max_deg = this->get_parameter("det.y_angle_max_deg").as_double();
+        dp_.hold_frames = this->get_parameter("det.hold_frames").as_int();
     }
 };
 
 int main(int argc, char** argv) {
-    std::cout << "OpenCV version: " << CV_VERSION << std::endl;
     rclcpp::init(argc, argv);
-
-    // json 경로는 개발 환경에 맞게 변경하시면 됩니다.
-    Config config = load_config("/home/xytron/xycar_ws/src/orda/modular/lane_detection/lane_detection_parameter.json"); 
-
-    auto node = std::make_shared<LaneDetector>(config);
-    rclcpp::spin(node);
+    rclcpp::spin(std::make_shared<LaneDetectionNode>());
     rclcpp::shutdown();
     return 0;
 }
-
