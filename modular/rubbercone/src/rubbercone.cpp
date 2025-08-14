@@ -210,20 +210,8 @@ void LidarViewer::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
       has_mid = true;
     }
     
-  } else if (left_group.size() >= 2 && right_group.empty()) {
-    // 케이스 5: 왼쪽 2개 이상, 오른쪽 없음
-    const cv::Point2f &L0 = left_group[0];
-    const cv::Point2f &L1 = left_group[1];
-    cv::Point2f mid{(L0.x + L1.x) * 0.5f, (L0.y + L1.y) * 0.5f};
-    cv::Point2f v{L1.x - L0.x, L1.y - L0.y};
-    float norm = std::hypot(v.x, v.y);
-    
-    if (norm > 1e-6f) {  // 0으로 나누기 방지
-      cv::Point2f u{v.y / norm, -v.x / norm};  // 반대 방향
-      float d = 0.37f;
-      target = cv::Point2f{mid.x + u.x * d, mid.y + u.y * d};
-      has_mid = true;
-    }
+  } else {
+    rubber_end_value_ = 1;
   }
 
   // offset 값 업데이트
