@@ -18,16 +18,16 @@ CHANGE_LANE       = 5  # 차선 변경 모드
 # PD 제어 파라미터: mode → (kp, kd, alpha)
 # kp: 비례 이득, kd: 미분 이득, alpha: 비선형 보정 계수
 PD_PARAMS = {
-    RUBBERCONE_DRIVE: (1, 0.0, 0.0),
-    LANE_DRIVE:       (1, 0.0, 0.0),
+    RUBBERCONE_DRIVE: (1.1, 0.0, 0.0),
+    LANE_DRIVE:       (0.25, 0.0, 0.0),
     CHANGE_LANE:      (1, 0.0, 0.0),
 }
 
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
 # max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
-    RUBBERCONE_DRIVE: (10.0, 10.0, 0.1),
-    LANE_DRIVE:       (50.0, 30.0, 0.1),
+    RUBBERCONE_DRIVE: (21.0, 21.0, 0.1),
+    LANE_DRIVE:       (30.0, 20.0, 0.1),
     CHANGE_LANE:      (30.0, 20.0, 0.1),
 }
 

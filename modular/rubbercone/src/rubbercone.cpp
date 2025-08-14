@@ -1,41 +1,31 @@
 #include "rubbercone/rubbercone.hpp"
-#include <cv_bridge/cv_bridge.h>
-#include <std_msgs/msg/int32_multi_array.hpp>
 #include <vector>
 #include <cmath>
 #include <sstream>
 #include <iomanip>
 #include <cstdlib>
 #include <chrono>
+#include <opencv2/opencv.hpp>
 
 LidarViewer::LidarViewer()
-: Node("rubbercone"), window_size_(800), scale_(500.0f), OFFSET_GAIN_(300.0f),
-rubber_offset_value_(0),
-rubber_end_value_(0)
-
+: Node("rubbercone"),
+  window_size_(800),        
+  scale_(500.0f),
+  OFFSET_GAIN_(300.0f),
+  rubber_offset_value_(0),
+  rubber_end_value_(0)
 {
-    scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-        "/scan",
-        rclcpp::SensorDataQoS(),
-        std::bind(&LidarViewer::scanCallback, this, std::placeholders::_1)
-    );
-
-    image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "/image_raw",
-        rclcpp::SensorDataQoS(),
-        std::bind(&LidarViewer::imageCallback, this, std::placeholders::_1)
-    );
-
-    info_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("rubbercone_info", 10);
-    
-    // 2) 50Hz 타이머 생성
-    info_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(20),
-      std::bind(&LidarViewer::publishInfo, this)
-    );
-
-    cv::namedWindow("Lidar View", cv::WINDOW_AUTOSIZE);
-    cv::namedWindow("Camera View", cv::WINDOW_AUTOSIZE);
+  scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
+    "/scan", rclcpp::SensorDataQoS(),
+    std::bind(&LidarViewer::scanCallback, this, std::placeholders::_1)
+  );
+  info_pub_ = create_publisher<std_msgs::msg::Int32MultiArray>(
+    "rubbercone_info", 10
+  );
+  info_timer_ = create_wall_timer(
+    std::chrono::milliseconds(20),
+    std::bind(&LidarViewer::publishInfo, this)
+  );
 }
 
 void LidarViewer::publishInfo() {
@@ -47,140 +37,209 @@ void LidarViewer::publishInfo() {
 }
 
 void LidarViewer::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
-    // 1) 캔버스 준비
-    cv::Mat canvas = cv::Mat::zeros(window_size_, window_size_, CV_8UC3);
-    cv::Point2f center(window_size_/2, window_size_/2);
-
-    // 2) 10cm 단위 동심원 (10~100cm)
-    for (int r_cm = 10; r_cm <= 100; r_cm += 10) {
-        float rad_px = r_cm * (scale_ / 100.0f);
-        cv::circle(canvas, center, int(rad_px), cv::Scalar(100,100,100), 1);
-        cv::putText(canvas, std::to_string(r_cm) + "cm",
-                    {int(center.x + 5), int(center.y - rad_px)},
-                    cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1);
+  // 1) 유효 포인트 수집
+  const float ANG_MAX = 85.0f * M_PI / 180.0f;
+  std::vector<cv::Point2f> pts;
+  float angle = msg->angle_min;
+  
+  for (float range : msg->ranges) {
+    if (std::isfinite(range) &&
+        range >= 0.18f && range <= 1.90f &&
+        angle >= -ANG_MAX && angle <= ANG_MAX) {
+      pts.emplace_back(range * std::cos(angle),
+                       range * std::sin(angle));
     }
+    angle += msg->angle_increment;
+  }
 
-    // 3) 유효 포인트만 수집 (각도와 거리 제한)
-    const float ANG_MAX = 85.0f * M_PI/180.0f;
-    std::vector<cv::Point2f> pts;
-    float angle = msg->angle_min;
-    for (float range : msg->ranges) {
-        if (std::isfinite(range)
-            && range >= 0.18f && range <= 0.80f
-            && angle >= -ANG_MAX && angle <= ANG_MAX)
-        {
-            pts.emplace_back(range * std::cos(angle),
-                             range * std::sin(angle));
-        }
-        angle += msg->angle_increment;
+  // 포인트 수가 부족한 경우 처리
+  if (pts.size() < 2) {
+    RCLCPP_WARN(this->get_logger(), "Insufficient valid points: %zu", pts.size());
+    rubber_offset_value_ = 0;
+    return;
+  }
+
+  // 2) 라바콘 그룹화 (왼쪽/오른쪽)
+  std::vector<cv::Point2f> left_group, right_group;
+  cv::Point2f left_first, right_first;
+  float left_min = 1e6f, right_min = 1e6f;
+  bool found_left = false, found_right = false;
+
+  for (auto &pt : pts) {
+    float d = std::hypot(pt.x, pt.y);
+    if (pt.y > 0) {  // 왼쪽 (y > 0)
+      if (d < left_min) {
+        left_min = d; 
+        left_first = pt; 
+        found_left = true;
+      }
+    } else {  // 오른쪽 (y <= 0)
+      if (d < right_min) {
+        right_min = d; 
+        right_first = pt; 
+        found_right = true;
+      }
     }
+  }
 
-    // 4) DBSCAN-like 클러스터링 (eps=0.08m)
-    const float eps = 0.08f;
-    std::vector<bool> visited(pts.size(), false);
-    std::vector<std::vector<int>> clusters;
-    for (size_t i = 0; i < pts.size(); ++i) {
-        if (visited[i]) continue;
-        std::vector<int> stack = {int(i)}, cluster;
-        visited[i] = true;
-        while (!stack.empty()) {
-            int idx = stack.back(); stack.pop_back();
-            cluster.push_back(idx);
-            for (size_t j = 0; j < pts.size(); ++j) {
-                if (visited[j]) continue;
-                float dx = pts[j].x - pts[idx].x;
-                float dy = pts[j].y - pts[idx].y;
-                if (std::sqrt(dx*dx + dy*dy) <= eps) {
-                    visited[j] = true;
-                    stack.push_back(int(j));
-                }
+  const float CONE_D = 0.38f;
+  
+  // 왼쪽 그룹 확장
+  if (found_left) {
+    left_group.push_back(left_first);
+    cv::Point2f cur = left_first;
+    
+    while (left_group.size() < 5) {
+      cv::Point2f next; 
+      float best = 1e6f; 
+      bool ok = false;
+      
+      for (auto &pt : pts) {
+        if (pt.y <= 0) continue;  // 왼쪽만
+        
+        float d0 = std::hypot(pt.x, pt.y);
+        float dc = std::hypot(pt.x - cur.x, pt.y - cur.y);
+        
+        if (d0 > std::hypot(cur.x, cur.y) + 0.1f &&
+            std::abs(dc - CONE_D) < 0.15f && d0 < best) {
+          
+          bool close = false;
+          for (auto &ex : left_group) {
+            if (std::hypot(pt.x - ex.x, pt.y - ex.y) < 0.1f) {
+              close = true;
+              break;
             }
+          }
+          
+          if (!close) { 
+            best = d0; 
+            next = pt; 
+            ok = true; 
+          }
         }
-        clusters.push_back(std::move(cluster));
+      }
+      
+      if (!ok) break;
+      left_group.push_back(next);
+      cur = next;
     }
-
-    // 5) 클러스터별 가장 먼 점 → 빨간 점, 좌·우 근거리 대표점 추출
-    float left_min = 1e6f, right_min = 1e6f;
-    cv::Point2f left_pt, right_pt;
-    for (auto &cluster : clusters) {
-        float max_r = 0; int far_idx = -1;
-        for (int idx : cluster) {
-            float r = std::hypot(pts[idx].x, pts[idx].y);
-            if (r > max_r) {
-                max_r = r;
-                far_idx = idx;
+  }
+  
+  // 오른쪽 그룹 확장
+  if (found_right) {
+    right_group.push_back(right_first);
+    cv::Point2f cur = right_first;
+    
+    while (right_group.size() < 5) {
+      cv::Point2f next; 
+      float best = 1e6f; 
+      bool ok = false;
+      
+      for (auto &pt : pts) {
+        if (pt.y >= 0) continue;  // 오른쪽만
+        
+        float d0 = std::hypot(pt.x, pt.y);
+        float dc = std::hypot(pt.x - cur.x, pt.y - cur.y);
+        
+        if (d0 > std::hypot(cur.x, cur.y) + 0.1f &&
+            std::abs(dc - CONE_D) < 0.15f && d0 < best) {
+          
+          bool close = false;
+          for (auto &ex : right_group) {
+            if (std::hypot(pt.x - ex.x, pt.y - ex.y) < 0.1f) {
+              close = true;
+              break;
             }
+          }
+          
+          if (!close) { 
+            best = d0; 
+            next = pt; 
+            ok = true; 
+          }
         }
-        if (far_idx < 0) continue;
-        int px = int(center.x - pts[far_idx].y * scale_);
-        int py = int(center.y - pts[far_idx].x * scale_);
-        cv::circle(canvas, {px, py}, 4, cv::Scalar(0,0,255), -1);
-
-        if (pts[far_idx].y > 0 && max_r < left_min) {
-            left_min = max_r;
-            left_pt  = pts[far_idx];
-        }
-        if (pts[far_idx].y < 0 && max_r < right_min) {
-            right_min = max_r;
-            right_pt  = pts[far_idx];
-        }
+      }
+      
+      if (!ok) break;
+      right_group.push_back(next);
+      cur = next;
     }
+  }
 
-    // 6) 교점 계산 및 초록색 점으로 그리기
-    bool has_mid = false;
-    cv::Point2f mid;
-    if (left_min < 1e6f && right_min < 1e6f) {
-        // 양쪽 대표점이 모두 검출된 경우
-        mid = { (left_pt.x + right_pt.x)/2, (left_pt.y + right_pt.y)/2 };
-        float offset_m = - mid.y;
-        rubber_offset_value_ = static_cast<int32_t>(offset_m * OFFSET_GAIN_);
-        rubber_end_value_ = 0;
-        has_mid = true;
-    } else {
-        // 왼쪽 또는 오른쪽 대표점이 하나라도 없으면 중앙점 계산 불가능
-        has_mid = false;
-        rubber_offset_value_ = 0;
-        rubber_end_value_ = 1;
+  // 3) 목표점 계산 및 offset 업데이트
+  bool has_mid = false;
+  cv::Point2f target;
+  
+  if (left_group.size() >= 2 && right_group.size() >= 2) {
+    // 케이스 1: 양쪽 모두 2개 이상의 콘이 있는 경우
+    cv::Point2f lm{(left_group[0].x + left_group[1].x) * 0.5f,
+                   (left_group[0].y + left_group[1].y) * 0.5f};
+    cv::Point2f rm{(right_group[0].x + right_group[1].x) * 0.5f,
+                   (right_group[0].y + right_group[1].y) * 0.5f};
+    target = cv::Point2f{(lm.x + rm.x) / 2.0f, (lm.y + rm.y) * 0.5f};
+    has_mid = true;
+    
+  } else if (left_group.size() == 1 && right_group.size() >= 2) {
+    // 케이스 2: 왼쪽 1개, 오른쪽 2개 이상
+    cv::Point2f rm{(right_group[0].x + right_group[1].x) / 2.0f,
+                   (right_group[0].y + right_group[1].y) / 2.0f};
+    target = cv::Point2f{(left_group[0].x + rm.x) / 2.0f,
+                         (left_group[0].y + rm.y) / 2.0f};
+    has_mid = true;
+    
+  } else if (left_group.size() >= 2 && right_group.size() == 1) {
+    // 케이스 3: 왼쪽 2개 이상, 오른쪽 1개
+    cv::Point2f lm{(left_group[0].x + left_group[1].x) / 2.0f,
+                   (left_group[0].y + left_group[1].y) / 2.0f};
+    target = cv::Point2f{(lm.x + right_group[0].x) / 2.0f,
+                         (lm.y + right_group[0].y) / 2.0f};
+    has_mid = true;
+    
+  } else if (left_group.empty() && right_group.size() >= 2) {
+    // 케이스 4: 왼쪽 없음, 오른쪽 2개 이상
+    const cv::Point2f &R0 = right_group[0];
+    const cv::Point2f &R1 = right_group[1];
+    cv::Point2f mid{(R0.x + R1.x) * 0.5f, (R0.y + R1.y) * 0.5f};
+    cv::Point2f v{R1.x - R0.x, R1.y - R0.y};
+    float norm = std::hypot(v.x, v.y);
+    
+    if (norm > 1e-6f) {  // 0으로 나누기 방지
+      cv::Point2f u{-v.y / norm, v.x / norm};
+      float d = 0.37f;
+      target = cv::Point2f{mid.x + u.x * d, mid.y + u.y * d};
+      has_mid = true;
     }
+    
+  } else {
+    rubber_end_value_ = 1;
+  }
 
-    // 7) 화면에 중앙점 편차 텍스트 그리기
-    if (has_mid) {
-        int mid_px = int(center.x - mid.y * scale_);
-        int mid_py = int(center.y - mid.x * scale_);
-        cv::circle(canvas, {mid_px, mid_py}, 6, cv::Scalar(0,255,0), -1);
-        // mid.x, mid.y 는 미터 단위. 원하는 포맷으로 예: 소수점 둘째 자리
-        // 좌우 오프셋만 표시 (mid.y)
-        float rubbercone_offset = - mid.y * OFFSET_GAIN_; // cm 단위로 변환
-        std::ostringstream ss;
-        ss << std::fixed << std::setprecision(2)
-            << "Rubbercone Offset: " << rubbercone_offset;
-        cv::putText(
-            canvas,
-            ss.str(),
-            cv::Point(10, 30),            // 왼쪽 위OFFSET_GAIN
-            cv::FONT_HERSHEY_SIMPLEX,
-            0.6,                          // 글자 크기
-            cv::Scalar(255,255,255),      // 색상: 흰색
-            2                             // 두께
-        );
-    }
-
-    // 8) 화면 띄우기
-    cv::imshow("Lidar View", canvas);
-    cv::waitKey(1);
+  // offset 값 업데이트
+  if (has_mid) {
+    float offset = -target.y * OFFSET_GAIN_;
+    rubber_offset_value_ = static_cast<int32_t>(offset);
+    
+    RCLCPP_DEBUG(this->get_logger(), 
+                 "Target: (%.3f, %.3f), Offset: %d", 
+                 target.x, target.y, rubber_offset_value_);
+  } else {
+    rubber_offset_value_ = 0;
+    
+    RCLCPP_INFO(this->get_logger(),
+                "rubber_offset_value_ = 0, lane_detection_ = 1 (L:%zu, R:%zu)",
+                left_group.size(), right_group.size());
+  }
 }
 
-void LidarViewer::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
-    cv::Mat img = cv_bridge::toCvCopy(msg, "bgr8")->image;
-    cv::imshow("Camera View", img);
-    cv::waitKey(1);
-}
-
-int main(int argc, char ** argv) {
-    setenv("GDK_BACKEND", "x11", 1);
-    setenv("QT_QPA_PLATFORM", "xcb", 1);
-    rclcpp::init(argc, argv);
+int main(int argc, char** argv) {
+  rclcpp::init(argc, argv);
+  
+  try {
     rclcpp::spin(std::make_shared<LidarViewer>());
-    rclcpp::shutdown();
-    return 0;
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(rclcpp::get_logger("main"), "Exception caught: %s", e.what());
+  }
+  
+  rclcpp::shutdown();
+  return 0;
 }

@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32MultiArray, Int16, Bool
-from xycar_msgs.msg import XycarMotor
+from std_msgs.msg import Float32MultiArray
 from main.control import Controller
 import cv2
 import numpy as np
@@ -27,7 +27,7 @@ class MainNode(Node):
         self.controller = Controller(self)
 
         # Publishers
-        self.motor_pub = self.create_publisher(XycarMotor, 'xycar_motor', 10)
+        self.motor_pub = self.create_publisher(Float32MultiArray, 'xycar_motor', 10)
         self.mode_pub = self.create_publisher(Int32MultiArray, 'mode_info', 10)
 
         # Subscribers (state updates only)
@@ -140,9 +140,8 @@ class MainNode(Node):
         speed = self.controller.get_speed()
 
         # 모터 제어 메시지 퍼블리시
-        motor_msg = XycarMotor()
-        motor_msg.angle = angle
-        motor_msg.speed = speed
+        motor_msg = Float32MultiArray()
+        motor_msg.data = [float(angle), float(speed)]
         self.motor_pub.publish(motor_msg)
 
         # 모드 정보 퍼블리시

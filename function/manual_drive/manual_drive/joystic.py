@@ -3,8 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
-from xycar_msgs.msg import XycarMotor
-import time
+from std_msgs.msg import Float32MultiArray
 
 class JoyToMotor(Node):
     def __init__(self):
@@ -19,8 +18,8 @@ class JoyToMotor(Node):
         )
 
         # motor 퍼블리셔
-        self.motor_pub = self.create_publisher(XycarMotor, 'xycar_motor', 10)
-        self.motor_msg = XycarMotor()
+        self.motor_pub = self.create_publisher(Float32MultiArray, 'xycar_motor', 10)
+        self.motor_msg = Float32MultiArray()
 
         # 초기값
         self.axis_0 = 0.0  # 조향
@@ -41,8 +40,7 @@ class JoyToMotor(Node):
         angle = -100 * self.axis_0
         speed = 50 * self.axis_4
 
-        self.motor_msg.angle = float(angle)
-        self.motor_msg.speed = float(speed)
+        self.motor_msg.data = [float(angle), float(speed)]
 
         # 퍼블리시
         self.motor_pub.publish(self.motor_msg)
