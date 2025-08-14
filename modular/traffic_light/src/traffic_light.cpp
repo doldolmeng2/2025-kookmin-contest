@@ -21,7 +21,7 @@ public:
 
     ////////////  임계치 설정  ///////////////
     // 녹색 픽셀 검출 임계치 0.01 = 1%
-    threshold_ratio_ = 0.9;
+    threshold_ratio_ = 0.01;
   }
 
 private:
@@ -39,12 +39,16 @@ private:
     // ROI: 상단 1/3
     int h = bgr.rows;
     int w = bgr.cols;
-    cv::Rect roi(0, 0, w, h / 3);
-    cv::Mat top_third = bgr(roi);
+    int roi_x = static_cast<int>(w * 6.0 / 11.0);  // 오른쪽 5/11 시작 X
+    int roi_y = 0;                                // 상단
+    int roi_w = w - roi_x;                        // 3/7 너비
+    int roi_h = h / 3;                            // 상단 1/3 높이
+    cv::Rect roi(roi_x, roi_y, roi_w, roi_h);
+    cv::Mat region = bgr(roi);
 
     // BGR → HSV 변환
     cv::Mat hsv;
-    cv::cvtColor(top_third, hsv, cv::COLOR_BGR2HSV);
+    cv::cvtColor(region, hsv, cv::COLOR_BGR2HSV);
 
     // 녹색 범위 (Hue: 35~85, Sat:100~255, Val:100~255
 
