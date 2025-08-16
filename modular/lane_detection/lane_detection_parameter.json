@@ -1,0 +1,40 @@
+{
+  "yellow_hls_min_h": 21,
+  "yellow_hls_max_h": 40,
+  "yellow_hls_min_l": 120,
+  "yellow_hls_max_l": 255,
+  "yellow_hls_min_s": 64,
+  "yellow_hls_max_s": 255,
+
+  "yellow_hsv_min_h": 21,
+  "yellow_hsv_max_h": 40,
+  "yellow_hsv_min_s": 40,
+  "yellow_hsv_max_s": 255,
+  "yellow_hsv_min_v": 64,
+  "yellow_hsv_max_v": 255,
+
+  "lane_mode": "LANE_TWO",
+  "frame_width": 640,
+  "frame_height": 360,
+
+  "roi_top_width_coefficient": 0.9,
+  "roi_bottom_width_coefficient": 2,
+  "roi_top_y_coefficient": 0.7,
+  "roi_bottom_y_coefficient": 1.0,
+
+  "sliding_window_num_windows": 20,
+  "sliding_window_margin": 100,
+  "sliding_window_minpix": 5,
+  "corridor_width": 700,
+
+  "gaussian_blur_kernel_size": 5,
+
+  "canny_yellow_high_threshold": 200,
+  "canny_yellow_low_threshold": 150,
+
+  "kernel_yellow_closing_size": 9,
+  "kernel_yellow_opening_size": 3,
+  
+  "center_reference_lane_one": 0.6,
+  "center_reference_lane_two": 0.35
+}

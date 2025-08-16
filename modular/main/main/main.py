@@ -106,7 +106,7 @@ class MainNode(Node):
             elapsed = 0.0
         # 모드 전환
         if not self.test_mode: # test mode가 아닐 때만 모드 변경
-            if self.mode == TRAFFIC_WAIT and self.traffic_green and:
+            if self.mode == TRAFFIC_WAIT and self.traffic_green:
                 self.mode = RUBBERCONE_DRIVE
 
             elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1:

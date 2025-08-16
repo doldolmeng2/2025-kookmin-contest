@@ -26,16 +26,16 @@ PD_PARAMS = {
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
 # max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
-    RUBBERCONE_DRIVE: (21.0, 21.0, 0.1),
-    LANE_DRIVE:       (30.0, 20.0, 0.1),
-    CHANGE_LANE:      (30.0, 20.0, 0.1),
+    RUBBERCONE_DRIVE: (10.0, 10.0, 0.1),
+    LANE_DRIVE:       (10.0, 10.0, 0.1),
+    CHANGE_LANE:      (10.0, 10.0, 0.1),
 }
 
 # 라바콘 종료 시 고정 파라미터
 # angle: 종료 직후 조향 각도, speed: 종료 직후 속도
 RUBBERCONE_END_PARAMS = {
     'angle': 0.0,
-    'speed': 20.0,
+    'speed': 5.0,
 }
 
 # 장애물 접근 모드 파라미터
