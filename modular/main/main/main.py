@@ -56,6 +56,7 @@ class MainNode(Node):
         self.traffic_green = False
         self.rubbercone_end_time = None
         self.into_lane_timer = 2.0
+        self.slowdown = 0  # stop 플래그 (0: 정상, 1: 감속)
 
         # 20 ms timer to run control cycle at ~50 Hz
         self.create_timer(0.02, self.control_cycle)
@@ -85,6 +86,7 @@ class MainNode(Node):
         if len(msg.data) >= 2:
             self.rubbercone_offset = msg.data[0]
             self.end_flag          = msg.data[1]
+            self.slowdown          = msg.data[2]
 
     def lane_offset_callback(self, msg):
         self.lane_offset = msg.data
@@ -138,6 +140,8 @@ class MainNode(Node):
         self.controller.update(self.mode, offset, self.object_dist)
         angle = self.controller.get_angle()
         speed = self.controller.get_speed()
+        if self.slowdown == 1 and self.mode == RUBBERCONE_DRIVE:
+            speed = speed * 0.3  # 감속 적용
 
         # 모터 제어 메시지 퍼블리시
         motor_msg = Float32MultiArray()
