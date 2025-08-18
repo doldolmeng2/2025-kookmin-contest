@@ -40,7 +40,7 @@
 
   "horizontal_noise_width": 80,
   "horizontal_noise_band_h": 3,
-  "horizontal_noise_extra_pad": 20,
+  "horizontal_noise_extra_pad": 30,
   "horizontal_band_corridor_ratio_thresh": 0.1,
   
   "debug_view": false
