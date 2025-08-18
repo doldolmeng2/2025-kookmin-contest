@@ -81,7 +81,7 @@ private:
       }
     }
 
-    const float CONE_D = 0.41f;  // 추정 콘 간격(미터)
+    const float CONE_D = 0.42f;  //  콘 간격(m)
     int start = 0;  // 시작 플래그 (0: 출발 전, 1: 출발 후)
 
     auto extend_group = [&](bool left_side,
@@ -159,50 +159,45 @@ private:
     } else if (left_group.empty() && right_group.size() >= 2) {
       // 케이스 4: 오른쪽 2개 이상만 보일 때 → 법선방향으로 차선 중앙 추정
       start = 1;
-      const cv::Point2f &R0 = right_group[0];
-      const cv::Point2f &R1 = right_group[1];
-      cv::Point2f mid{ (R0.x + R1.x) * 0.5f, (R0.y + R1.y) * 0.5f };
+      RCLCPP_INFO(get_logger(), "Right group only detected");
+      
+
+      // 2. 원래 벡터 구하기
       cv::Point2f v{ R1.x - R0.x, R1.y - R0.y };
-      float norm = std::hypot(v.x, v.y);
-      RCLCPP_DEBUG(get_logger(),
+
+
+      // 4. 수직 단위벡터 구하기 (반시계방향으로 90도 회전)
+      cv::Point2f unit_perp{ -v.y / norm, v.x / norm };
+
+      // 5. 목표지점 설정 (-42만큼 이동)
+      cv::Point2f target = {R0.x, R0.y} + unit_perp * (-42.0f);
+
+      RCLCPP_INFO(get_logger(),
                    "Right group: (%.3f, %.3f) -> (%.3f, %.3f), norm=%.3f",
-                   R0.x, R0.y, R1.x, R1.y, norm);
+                   R0.x, R0.y, R1.x, R1.y, target.x, target.y);
 
-      if (norm > 1e-6f) {
-        cv::Point2f u{ -v.y / norm, v.x / norm }; // v의 좌측 법선
-        float d = CONE_D; // 차선 폭을 CONE_D로 가정(필요시 파라미터화)
-        target = cv::Point2f{ mid.x + u.x * d, mid.y + u.y * d };
-        has_mid = true;
-      }
-    }
-
-    if (has_mid) {
-      float offset = -target.y * OFFSET_GAIN_;
-      rubber_offset_value_ = static_cast<int32_t>(std::round(offset));
-      rubber_end_value_ = 0;
-
-      RCLCPP_DEBUG(get_logger(),
-                   "Target(%.3f, %.3f) → offset=%d",
-                   target.x, target.y, rubber_offset_value_);
-    } else if(start == 1) {
-      // 출발이후 중앙 추정 불가 → 오프셋 하드코딩 -50, 0.4s 동안 유지
-      if (!hardcode_active_) {
-        hardcode_active_ = true;
-        hardcode_start_time_ = this->now();
-        rubber_offset_value_ = -50;
-        rubber_end_value_ = 0;  // 아직 종료 아님
-        RCLCPP_INFO(get_logger(), "Hardcoded offset -50 started");
-      } else {
-        // 이미 하드코딩 주행 중 → 경과시간 확인
-        const double elapsed = (this->now() - hardcode_start_time_).seconds();
-        if (elapsed < 1.1) {  // 400ms
+ 
+    } else {
+      if(start == 1){ // 출발때 작동 방지
+        // 출발이후 중앙 추정 불가 → 오프셋 하드코딩 -50
+        if (!hardcode_active_) {
+          hardcode_active_ = true;
+          hardcode_start_time_ = this->now();
           rubber_offset_value_ = -50;
-          rubber_end_value_ = 0;
+          rubber_end_value_ = 0;  // 아직 종료 안됨
+          RCLCPP_INFO(get_logger(), "Hardcoded offset -50 started");
         } else {
-          hardcode_active_ = false;
-          rubber_offset_value_ = 0;
-          rubber_end_value_ = 1;  // 최종 종료
-          RCLCPP_INFO(get_logger(), "Hardcoded offset finished, end=1");
+          // 이미 하드코딩 주행 중 → 경과시간 확인
+          const double elapsed = (this->now() - hardcode_start_time_).seconds();
+          if (elapsed < 1.1) {  // 1100ms
+            rubber_offset_value_ = -50;
+            rubber_end_value_ = 0;
+          } else {
+            hardcode_active_ = false;
+            rubber_offset_value_ = 0;
+            rubber_end_value_ = 1;  // 최종 종료
+            RCLCPP_INFO(get_logger(), "Hardcoded offset finished, rubber_end_value_=1");
+          }
         }
       }
     }
