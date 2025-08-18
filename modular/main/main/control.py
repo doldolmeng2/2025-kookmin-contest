@@ -19,7 +19,7 @@ CHANGE_LANE       = 5  # 차선 변경 모드
 # kp: 비례 이득, kd: 미분 이득, alpha: 비선형 보정 계수
 PD_PARAMS = {
     RUBBERCONE_DRIVE: (1.1, 0.0, 0.0),
-    LANE_DRIVE:       (0.25, 0.0, 0.0),
+    LANE_DRIVE:       (0.15, 0.3, 0.0),
     CHANGE_LANE:      (1, 0.0, 0.0),
 }
 
@@ -27,7 +27,7 @@ PD_PARAMS = {
 # max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
     RUBBERCONE_DRIVE: (10.0, 10.0, 0.1),
-    LANE_DRIVE:       (10.0, 10.0, 0.1),
+    LANE_DRIVE:       (30.0, 10.0, 0.4),
     CHANGE_LANE:      (10.0, 10.0, 0.1),
 }
 
@@ -35,7 +35,7 @@ SPEED_PARAMS = {
 # angle: 종료 직후 조향 각도, speed: 종료 직후 속도
 RUBBERCONE_END_PARAMS = {
     'angle': 0.0,
-    'speed': 5.0,
+    'speed': 0.0,
 }
 
 # 장애물 접근 모드 파라미터

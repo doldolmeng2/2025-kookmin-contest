@@ -2,6 +2,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include "std_msgs/msg/int16.hpp"
 #include "std_msgs/msg/int32_multi_array.hpp"
+#include "std_msgs/msg/float32_multi_array.hpp"
 #include <cv_bridge/cv_bridge.h>
 
 #include <opencv2/opencv.hpp>
@@ -53,6 +54,9 @@ public:
         // 계산된 오프셋 퍼블리셔: /lane_offset (Int16, 픽셀 단위)
         offset_pub_ = this->create_publisher<std_msgs::msg::Int16>("/lane_offset", 10);
         
+        // 계산된 중앙선 퍼블리셔: /lane_fit (Float32MultiArray, m하고 b 담아서 보냄)
+        fit_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/lane_fit", 10);
+
         // ROI 사다리꼴을 직사각형으로 펴주는 투시변환 행렬(H)과 BEV 크기 계산
         buildHomography(); // ROI 사다리꼴 → 직사각형(BEV) 변환 행렬 계산
     }
@@ -298,7 +302,7 @@ public:
 
         // (e) 포인트가 너무 적으면 피팅 불가능 → 실패 처리
         if (pts.size() < 10) {
-            RCLCPP_WARN(get_logger(), "Not enough points for fit: %zu → use previous line", pts.size());
+            // RCLCPP_WARN(get_logger(), "Not enough points for fit: %zu → use previous line", pts.size());
             ok = false;
             if (dbg_out && has_prev_center_fit_) {
                 float m = prev_center_fit_.m, b = prev_center_fit_.b;
@@ -401,11 +405,123 @@ public:
         return out;
     }
 
+    // 간단 버전: 추가 모폴로지 없이 "세로로 얇게 묶은(OR)" 가로줄에서 run-length 검사
+    // - horizontal_noise_width: 노이즈로 볼 가로 최소 길이(px)
+    // - min_rows: 이런 긴 구간이 발견되어야 하는 줄 수(개)
+    // - band_h: 세로로 몇 줄을 묶어서 한 줄처럼 볼지(약간 대각선 허용용)
+    bool detectHorizontalNoise(const cv::Mat& bev_bin,
+                            int horizontal_noise_width,
+                            int min_rows,
+                            int y_start,
+                            int y_end,
+                            int band_h) const
+    {
+        CV_Assert(bev_bin.type() == CV_8UC1);
+        const int H = bev_bin.rows, W = bev_bin.cols;
+        if (W <= 0 || H <= 0) return false;
+
+        if (y_end < 0 || y_end > H) y_end = H;   // 검사 끝 y 보정
+        y_start = std::max(0, y_start);          // 검사 시작 y 보정
+        y_end   = std::min(H, y_end);
+        band_h  = std::max(1, band_h);           // 최소 1줄은 묶기
+        if (y_start >= y_end) return false;
+
+        int rows_hit = 0;
+
+        // y를 한 줄씩 올리면서, [y .. y+band_h-1] 범위를 세로 OR해서 "병합 가로줄" 생성
+        for (int y = y_start; y <= y_end - band_h; ++y) {
+            int best = 0, run = 0;
+
+            for (int x = 0; x < W; ++x) {
+                // 이 x에서, 세로로 band_h 줄 중 하나라도 흰 픽셀이 있으면 1로 간주
+                bool on = false;
+                for (int dy = 0; dy < band_h; ++dy) {
+                    if (bev_bin.at<uchar>(y + dy, x) > 0) { on = true; break; }
+                }
+
+                if (on) { run++; if (run > best) best = run; }
+                else    { run = 0; }
+            }
+
+            // 이 병합줄에서 "가로로 충분히 긴 스트릭"이 있으면 카운트
+            if (best >= horizontal_noise_width) {
+                rows_hit++;
+                RCLCPP_INFO(get_logger(), "rows_hit: %d", rows_hit);
+                RCLCPP_INFO(get_logger(), "noise_width: %d", best);
+                if (rows_hit >= min_rows) return true;  // 충분히 많은 줄에서 발견 → 노이즈
+            }
+        }
+
+        return false; // 노이즈 아님
+    }
+
+    // --- LaneDetector 클래스 내부에 추가 ---
+    void publishAndDebug(const cv::Mat& bev_yellow,
+                        const cv::Mat& frame,
+                        float offset,
+                        const LineFit& fit,
+                        bool show_dbg,
+                        bool used_ref_fallback,
+                        int ref_x = -1,
+                        int y_start_chk = 0,
+                        int y_end_chk = 0,
+                        const cv::Mat* dbg_from_fit = nullptr)
+    {
+        // 1) 오프셋 발행
+        std_msgs::msg::Int16 offset_msg;
+        offset_msg.data = static_cast<int16_t>(std::round(offset));
+        offset_pub_->publish(offset_msg);
+
+        // 2) center_fit 발행 (항상 발행, fallback일 때는 ref라인 기준 fit이 들어옴)
+        std_msgs::msg::Float32MultiArray fit_msg;
+        fit_msg.data = { fit.m, fit.b };
+        fit_pub_->publish(fit_msg);
+
+        // 3) 디버그 출력
+        if (!debug_view_ || !show_dbg) return;
+
+        if (used_ref_fallback) {
+            // fallback: ref 라인/검사구간을 새 캔버스에 그려서 보여줌
+            cv::Mat dbg;
+            cv::cvtColor(bev_yellow, dbg, cv::COLOR_GRAY2BGR);
+            if (ref_x >= 0) {
+                cv::line(dbg, {ref_x, 0}, {ref_x, bev_size_.height - 1}, {0,255,0}, 2);
+            }
+            cv::rectangle(dbg, {0, y_start_chk}, {bev_size_.width-1, y_end_chk}, {255,0,0}, 1);
+            cv::putText(dbg, "H-noise -> fallback to REF",
+                        {10, 20}, cv::FONT_HERSHEY_SIMPLEX, 0.5, {0,255,255}, 1);
+            cv::imshow("SlidingWindows", dbg);
+        } else {
+            // 정상 피팅: fitLaneFromBEV가 그린 "박스+마커+최종 라인" 그대로 사용
+            if (dbg_from_fit && !dbg_from_fit->empty()) {
+                cv::imshow("SlidingWindows", *dbg_from_fit);
+            } else {
+                // 안전망: dbg가 없으면 간단히 라인만 그려서 표기
+                cv::Mat dbg;
+                cv::cvtColor(bev_yellow, dbg, cv::COLOR_GRAY2BGR);
+                float m = fit.m, b = fit.b;
+                cv::line(dbg,
+                        {std::clamp((int)(m*0+b),0,bev_size_.width-1), 0},
+                        {std::clamp((int)(m*(bev_size_.height-1)+b),0,bev_size_.width-1), bev_size_.height-1},
+                        {0,255,0}, 2);
+                cv::imshow("SlidingWindows", dbg);
+            }
+        }
+
+        // 공통: 오프셋 슬라이더
+        if (debug_view_) { 
+            cv::Mat vis = drawOffsetSlider(frame, offset, lane_mode_);
+            cv::imshow("Lane View + Offset", vis);
+            cv::waitKey(1);
+        }
+    }
+
 private:
     // ===== ROS 통신 객체 =====
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr mode_sub_;
     rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr offset_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr fit_pub_;
 
     // ===== 파라미터 (Config에서 로드) =====
     Config config_;
@@ -427,8 +543,12 @@ private:
 
     // 디버그 스로틀
     int frame_count_ = 0;
-    int debug_stride_ = 1; // 2프레임에 한 번 그리기(원하면 Config로)
-    bool debug_view_ = true; // Config가 있으면 그거 사용
+    int debug_stride_ = 1; // 1프레임에 한 번 그리기(원하면 Config로)
+    bool debug_view_ = config_.debug_view; // Config가 있으면 그거 사용
+
+    // 노이즈 변수
+    int noise_cooldown_ = 0;      // 남은 쿨다운 프레임 수
+    int noise_clear_count_ = 0;   // 연속 클린 카운트
 
     // ===== 콜백: 이미지 수신 → 전처리 → BEV → 피팅 → 오프셋 → 퍼블리시 =====
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
@@ -446,27 +566,81 @@ private:
         // ROI 사다리꼴 시각화
         Mat frame_roi_vis = frame.clone();
         drawROIPolygon(frame_roi_vis);
-        imshow("ROI Polygon", frame_roi_vis);
+        if (debug_view_) {
+            imshow("ROI Polygon", frame_roi_vis);
+        }
 
         // (1) 노란선 전처리(ROI 내부의 노란 에지 픽셀만 남김)
         Mat yellow_edges = preprocessYellow(frame);
-        imshow("Mask-Yellow", yellow_edges);
+        if (debug_view_) {
+            imshow("Mask-Yellow", yellow_edges);
+        }
 
         // (2) BEV 변환(사다리꼴 ROI → 직사각형). ROI 외부는 0으로 유지됨.
         Mat bev_yellow;
         warpPerspective(yellow_edges, bev_yellow, H_, bev_size_, INTER_LINEAR, BORDER_CONSTANT,  Scalar(0));
-        imshow("BEV-Yellow", bev_yellow);
+        if (debug_view_) {
+            imshow("BEV-Yellow", bev_yellow);
+        }
+
+        // 파라미터(원하면 Config로 빼기): 가로 연속 길이, 행 개수, 검사 구간
+        const int horizontal_noise_width = config_.horizontal_noise_width;
+        const int horizontal_noise_min_rows    = config_.horizontal_noise_min_rows;                                                      // 예: 최소 3개 행에서 발견
+        const int y_start_chk = (int)std::round(bev_size_.height * 0.0f);              // 예: 상하단 일부 제외하고 검사
+        const int y_end_chk   = (int)std::round(bev_size_.height * 1.0f);
+        const int band_h = config_.horizontal_noise_band_h;
+        
+        // (3) 노이즈 검출
+        bool noisy = detectHorizontalNoise(bev_yellow, horizontal_noise_width, horizontal_noise_min_rows, y_start_chk, y_end_chk, band_h);
+        if (noisy) {
+            // 노이즈 발생 → 쿨다운 리셋
+            noise_cooldown_ = config_.noise_cooldown;
+            noise_clear_count_ = 0;
+        } else {
+            if (noise_cooldown_ > 0) {
+                // 쿨다운 중 → 클린 카운트 증가
+                noise_clear_count_++;
+                if (noise_clear_count_ >= config_.noise_cooldown) {
+                    // xx번 연속 깨끗해야 정상 복귀
+                    noise_cooldown_ = 0;
+                    noise_clear_count_ = 0;
+                }
+            }
+        }
+
+        // === 쿨다운 활성 중이면 무조건 fallback 사용 ===
+        if (noise_cooldown_ > 0) {
+            // 기준 비율에서 ref_x 계산
+            float ref_ratio = (lane_mode_ == LaneMode::LANE_ONE) ? center_reference_lane_one_
+                                                                 : center_reference_lane_two_;
+            ref_ratio = std::clamp(ref_ratio, 0.0f, 1.0f);
+            int ref_x = std::clamp((int)std::round(ref_ratio * bev_size_.width), 0, bev_size_.width - 1);
+
+            // 레퍼런스 라인으로 대체: x = m*y + b (m=0, b=ref_x)
+            LineFit center_fit_ref{0.f, (float)ref_x};
+
+            // 오프셋 계산(레퍼런스와 동일 → 0)
+            float offset = calcOffsetFromCenterLine(center_fit_ref, bev_size_.width);
+            prev_offset_ = offset;            // 기록만 갱신 (prev_center_fit_는 갱신 안 함)
+            // has_prev_center_fit_는 유지 → 이후 정상 프레임에서 기존 추정 활용 가능
+
+            publishAndDebug(bev_yellow, frame, offset, center_fit_ref,
+                /*show_dbg=*/true, /*used_ref_fallback=*/true,
+                ref_x, y_start_chk, y_end_chk,
+                /*dbg_from_fit=*/nullptr);
+            return; // 조기 종료
+        }
 
         // 디버그 스로틀 여부
         frame_count_++;
         bool show_dbg = debug_view_ && (frame_count_ % debug_stride_ == 0);
 
-        // (3) BEV 상에서 슬라이딩 윈도우로 중앙선 포인트 수집 → 직선 피팅(x = m*y + b)
+        // (4) BEV 상에서 슬라이딩 윈도우로 중앙선 포인트 수집 → 직선 피팅(x = m*y + b)
         bool valid = false;
         cv::Mat dbg;
         LineFit center_fit = fitLaneFromBEV(bev_yellow, valid, show_dbg ? &dbg : nullptr);
 
-        // (4) 기준선 대비 오프셋 계산 (픽셀)
+        // (5) 기준선 대비 오프셋 계산 (픽셀)
         float offset = 0.f;
         if (valid) {
             offset = calcOffsetFromCenterLine(center_fit, bev_size_.width);
@@ -476,36 +650,18 @@ private:
         } else {
             if (has_prev_center_fit_) {
                 offset = prev_offset_;           // 직전 offset 재사용
-                RCLCPP_INFO(get_logger(), "Center lane invalid → reuse previous offset: %.1f", offset);
+                // RCLCPP_INFO(get_logger(), "Center lane invalid → reuse previous offset: %.1f", offset);
             } else {
                 // 처음부터 데이터가 없으면 0 사용
                 offset = 0.f;
-                RCLCPP_INFO(get_logger(), "Center lane invalid and no history → offset=0");
+                // RCLCPP_INFO(get_logger(), "Center lane invalid and no history → offset=0");
             }
         }
 
-        // (5) 퍼블리시: /lane_offset (Int16)
-        std_msgs::msg::Int16 offset_msg;
-        offset_msg.data = static_cast<int16_t>(std::round(offset));
-        offset_pub_->publish(offset_msg);
-
-        // === 디버그는 프레임 당 딱 한 번 ===
-        if (show_dbg) {
-            // 원하면 필요한 것만 보여줘: 창 1~2개로 제한
-            // 1) 슬라이딩윈도 디버그
-            if (!dbg.empty()) cv::imshow("SlidingWindows", dbg);
-
-            // 2) 오프셋 슬라이더
-            Mat vis = drawOffsetSlider(frame, offset, lane_mode_);
-            cv::imshow("Lane View + Offset", vis);
-
-            // 3) ROI/Mask/BEV는 필요할 때만 (주석 권장)
-            Mat frame_roi_vis = frame.clone(); drawROIPolygon(frame_roi_vis); imshow("ROI Polygon", frame_roi_vis);
-            imshow("Mask-Yellow", yellow_edges);
-            imshow("BEV-Yellow", bev_yellow);
-
-            cv::waitKey(1); // 한 번만!
-        }
+        publishAndDebug(bev_yellow, frame, offset, center_fit,
+                show_dbg, /*used_ref_fallback=*/false,
+                /*ref_x=*/-1, /*y_start_chk=*/0, /*y_end_chk=*/0,
+                /*dbg_from_fit=*/(dbg.empty()? nullptr : &dbg));
     }
 
     // ===== 콜백: 모드/레인 변경 =====

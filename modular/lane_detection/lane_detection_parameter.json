@@ -36,5 +36,11 @@
   "kernel_yellow_opening_size": 3,
   
   "center_reference_lane_one": 0.6,
-  "center_reference_lane_two": 0.35
+  "center_reference_lane_two": 0.35,
+
+  "horizontal_noise_width": 400,
+  "horizontal_noise_min_rows": 2,
+  "debug_view": false,
+  "horizontal_noise_band_h": 10,
+  "noise_cooldown": 10
 }

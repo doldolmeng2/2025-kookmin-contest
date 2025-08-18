@@ -45,5 +45,10 @@ Config load_config(const std::string& path) {
     config.kernel_yellow_opening_size = j["kernel_yellow_opening_size"];
     config.center_reference_lane_one = j["center_reference_lane_one"];
     config.center_reference_lane_two = j["center_reference_lane_two"];
+    config.horizontal_noise_width = j["horizontal_noise_width"];
+    config.horizontal_noise_min_rows = j["horizontal_noise_min_rows"];
+    config.debug_view = j["debug_view"];
+    config.horizontal_noise_band_h = j["horizontal_noise_band_h"];
+    config.noise_cooldown = j["noise_cooldown"];
     return config;
 }

@@ -37,6 +37,11 @@ struct Config {
     int kernel_yellow_opening_size;
     float center_reference_lane_one;
     float center_reference_lane_two;
+    int horizontal_noise_width;
+    int horizontal_noise_min_rows;
+    bool debug_view;
+    int horizontal_noise_band_h;
+    int noise_cooldown;
 };
 
 LaneMode lane_mode_from_string(const std::string& mode_str);
