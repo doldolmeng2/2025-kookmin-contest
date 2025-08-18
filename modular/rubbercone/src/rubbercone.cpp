@@ -52,7 +52,7 @@ private:
     pts.reserve(msg->ranges.size());
     for (float range : msg->ranges) {
       if (std::isfinite(range) &&
-          range >= 0.18f && range <= 1.90f &&
+          range >= 0.18f && range <= 0.90f &&
           angle >= -ANG_MAX && angle <= ANG_MAX) {
         // 좌표계: x=전방, y=좌측(표준적 레이저 프레임 가정)
         pts.emplace_back(range * std::cos(angle),
@@ -83,6 +83,7 @@ private:
 
     const float CONE_D = 0.42f;  //  콘 간격(m)
     int start = 0;  // 시작 플래그 (0: 출발 전, 1: 출발 후)
+    int finish = 0;
 
     auto extend_group = [&](bool left_side,
                             std::vector<cv::Point2f>& group,
@@ -128,11 +129,12 @@ private:
     if (found_right) extend_group(false, right_group, right_first);
 
     // 3) 목표점 계산 및 offset 업데이트
-    bool has_mid = false;
+    bool has_mid = true;
     cv::Point2f target{0.f, 0.f};
 
     if (left_group.size() >= 2 && right_group.size() >= 2) {
       // 케이스 1: 양쪽 2개 이상
+      start = 1;
       cv::Point2f lm{ (left_group[0].x + left_group[1].x) * 0.5f,
                       (left_group[0].y + left_group[1].y) * 0.5f };
       cv::Point2f rm{ (right_group[0].x + right_group[1].x) * 0.5f,
@@ -156,50 +158,35 @@ private:
                             (lm.y + right_group[0].y) * 0.5f };
       has_mid = true;
 
-    } else if (left_group.empty() && right_group.size() >= 2) {
-      // 케이스 4: 오른쪽 2개 이상만 보일 때 → 법선방향으로 차선 중앙 추정
-      start = 1;
-      RCLCPP_INFO(get_logger(), "Right group only detected");
+      } 
+
+      else if (start == 1) {
+        has_mid = false;
       
-
-      // 2. 원래 벡터 구하기
-      cv::Point2f v{ R1.x - R0.x, R1.y - R0.y };
-
-
-      // 4. 수직 단위벡터 구하기 (반시계방향으로 90도 회전)
-      cv::Point2f unit_perp{ -v.y / norm, v.x / norm };
-
-      // 5. 목표지점 설정 (-42만큼 이동)
-      cv::Point2f target = {R0.x, R0.y} + unit_perp * (-42.0f);
-
-      RCLCPP_INFO(get_logger(),
-                   "Right group: (%.3f, %.3f) -> (%.3f, %.3f), norm=%.3f",
-                   R0.x, R0.y, R1.x, R1.y, target.x, target.y);
-
- 
-    } else {
-      if(start == 1){ // 출발때 작동 방지
-        // 출발이후 중앙 추정 불가 → 오프셋 하드코딩 -50
-        if (!hardcode_active_) {
-          hardcode_active_ = true;
-          hardcode_start_time_ = this->now();
-          rubber_offset_value_ = -50;
-          rubber_end_value_ = 0;  // 아직 종료 안됨
-          RCLCPP_INFO(get_logger(), "Hardcoded offset -50 started");
-        } else {
-          // 이미 하드코딩 주행 중 → 경과시간 확인
-          const double elapsed = (this->now() - hardcode_start_time_).seconds();
-          if (elapsed < 1.1) {  // 1100ms
-            rubber_offset_value_ = -50;
-            rubber_end_value_ = 0;
-          } else {
-            hardcode_active_ = false;
-            rubber_offset_value_ = 0;
-            rubber_end_value_ = 1;  // 최종 종료
-            RCLCPP_INFO(get_logger(), "Hardcoded offset finished, rubber_end_value_=1");
-          }
         }
-      }
+      //else if (left_group.empty() && right_group.size() >= 2  ) {
+    //     // 케이스 4: 오른쪽 2개 이상만 보일 때
+    //      finish = 1;
+    //      RCLCPP_INFO(get_logger(), "어어 밀지마라 오른쪽2개 이상만 보임");
+    //      cv::Point2f &R0 = right_group[0];
+    //      cv::Point2f &R1 = right_group[1];
+    //      cv::Point2f v{ R1.x - R0.x, R1.y - R0.y };       // 원래 벡터
+    //      float norm = std::hypot(v.x, v.y);               // 벡터 길이
+    //      if (norm > 1e-6f) {
+    //        // 반시계 방향으로 90° 회전시킨 단위 법선 벡터
+    //        cv::Point2f unit_perp{ -v.y / norm, v.x / norm };
+    //        target = R0 + unit_perp * 0.42f;
+    //        has_mid = false;}
+    // }
+    if (has_mid) {
+      float offset = -target.y * OFFSET_GAIN_;
+      rubber_offset_value_ = static_cast<int32_t>(std::round(offset));
+      rubber_end_value_ = 0;
+    } 
+    else  { 
+      rubber_offset_value_ = -50;
+      rubber_end_value_ = 1;  // 최종 종료
+      RCLCPP_INFO(get_logger(), "끝났졍");
     }
   } // <-- scanCallback 끝
 

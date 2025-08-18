@@ -38,11 +38,10 @@ struct Config {
     float center_reference_lane_one;
     float center_reference_lane_two;
     int horizontal_noise_width;
-    int horizontal_noise_min_rows;
-    bool debug_view;
     int horizontal_noise_band_h;
-    int noise_cooldown;
+    int horizontal_noise_extra_pad;
+    float horizontal_band_corridor_ratio_thresh;
+    bool debug_view;
 };
-
 LaneMode lane_mode_from_string(const std::string& mode_str);
 Config load_config(const std::string& path);

@@ -38,9 +38,10 @@
   "center_reference_lane_one": 0.6,
   "center_reference_lane_two": 0.35,
 
-  "horizontal_noise_width": 400,
-  "horizontal_noise_min_rows": 2,
-  "debug_view": false,
-  "horizontal_noise_band_h": 10,
-  "noise_cooldown": 10
+  "horizontal_noise_width": 80,
+  "horizontal_noise_band_h": 3,
+  "horizontal_noise_extra_pad": 20,
+  "horizontal_band_corridor_ratio_thresh": 0.1,
+  
+  "debug_view": false
 }

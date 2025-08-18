@@ -46,9 +46,9 @@ Config load_config(const std::string& path) {
     config.center_reference_lane_one = j["center_reference_lane_one"];
     config.center_reference_lane_two = j["center_reference_lane_two"];
     config.horizontal_noise_width = j["horizontal_noise_width"];
-    config.horizontal_noise_min_rows = j["horizontal_noise_min_rows"];
-    config.debug_view = j["debug_view"];
     config.horizontal_noise_band_h = j["horizontal_noise_band_h"];
-    config.noise_cooldown = j["noise_cooldown"];
+    config.horizontal_noise_extra_pad = j["horizontal_noise_extra_pad"];
+    config.horizontal_band_corridor_ratio_thresh = j["horizontal_band_corridor_ratio_thresh"];
+    config.debug_view = j["debug_view"];
     return config;
 }
