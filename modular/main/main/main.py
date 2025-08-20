@@ -55,10 +55,13 @@ class MainNode(Node):
         self.object_dist = 0 
         self.traffic_green = False
         self.rubbercone_end_time = None
-        self.into_lane_timer = 2.0
+        self.into_lane_timer = 2.0 # 라바콘 끝나고 하드코딩 시간초
+        self.lane_drive_started = False
 
         # 20 ms timer to run control cycle at ~50 Hz
         self.create_timer(0.02, self.control_cycle)
+
+        self.lane_drive_start_time = None
 
     def joy_callback(self, msg: Joy):
         """
@@ -104,6 +107,19 @@ class MainNode(Node):
             elapsed = (now - self.rubbercone_end_time).nanoseconds / 1e9
         else:
             elapsed = 0.0
+
+        #################### 임시 코드 (라바콘) ###################
+        if self.mode == TRAFFIC_WAIT and self.traffic_green:
+            self.mode = RUBBERCONE_DRIVE
+            print("초록불 감지 -> 라바콘 모드로 변경")
+
+        elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1:
+            self.mode = RUBBERCONE_END
+            self.rubbercone_end_time = now
+            print("라바콘 종료 차선 진입")
+        ###################################################
+
+
         # 모드 전환
         if not self.test_mode: # test mode가 아닐 때만 모드 변경
             if self.mode == TRAFFIC_WAIT and self.traffic_green:
@@ -138,6 +154,21 @@ class MainNode(Node):
         self.controller.update(self.mode, offset, self.object_dist)
         angle = self.controller.get_angle()
         speed = self.controller.get_speed()
+
+        now = self.get_clock().now()
+
+        if (self.lane_drive_started == False):
+            self.lane_drive_started = True
+            self.lane_drive_start_time = now   # 추가
+
+        if (self.mode == 0):
+            self.lane_drive_started = False
+
+        # LANE_DRIVE 모드 진입 후 2초간 속도 제한
+        if self.mode == LANE_DRIVE and self.lane_drive_start_time is not None:
+            elapsed_lane = (now - self.lane_drive_start_time).nanoseconds / 1e9
+            if elapsed_lane < 8.0:
+                speed = 10.0
 
         # 모터 제어 메시지 퍼블리시
         motor_msg = Float32MultiArray()
