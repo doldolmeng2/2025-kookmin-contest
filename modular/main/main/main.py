@@ -186,6 +186,8 @@ class MainNode(Node):
         angle = self.controller.get_angle()
         speed = self.controller.get_speed()
 
+        # .
+
         # LANE_DRIVE 진입 후 속도 제한(가속 램프용)
         if not self.lane_drive_started:
             self.lane_drive_started   = True
