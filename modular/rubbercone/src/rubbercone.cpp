@@ -82,8 +82,6 @@ private:
     }
 
     const float CONE_D = 0.42f;  //  콘 간격(m)
-    int start = 0;  // 시작 플래그 (0: 출발 전, 1: 출발 후)
-    int finish = 0;
 
     auto extend_group = [&](bool left_side,
                             std::vector<cv::Point2f>& group,
@@ -134,8 +132,10 @@ private:
 
     if (left_group.size() >= 2 && right_group.size() >= 2) {
       // 케이스 1: 양쪽 2개 이상
-      start = 1;
-      cv::Point2f lm{ (left_group[0].x + left_group[1].x) * 0.5f,
+      if (start < 300) {
+        start++;
+      }
+        cv::Point2f lm{ (left_group[0].x + left_group[1].x) * 0.5f,
                       (left_group[0].y + left_group[1].y) * 0.5f };
       cv::Point2f rm{ (right_group[0].x + right_group[1].x) * 0.5f,
                       (right_group[0].y + right_group[1].y) * 0.5f };
@@ -160,7 +160,7 @@ private:
 
       } 
 
-      else if (start == 1) {
+      else if (start >= 300) {
         has_mid = false;
       
         }
@@ -176,7 +176,6 @@ private:
     //        // 반시계 방향으로 90° 회전시킨 단위 법선 벡터
     //        cv::Point2f unit_perp{ -v.y / norm, v.x / norm };
     //        target = R0 + unit_perp * 0.42f;
-    //        has_mid = false;}
     // }
     if (has_mid) {
       float offset = -target.y * OFFSET_GAIN_;
@@ -184,9 +183,16 @@ private:
       rubber_end_value_ = 0;
     } 
     else  { 
-      rubber_offset_value_ = -50;
-      rubber_end_value_ = 1;  // 최종 종료
-      RCLCPP_INFO(get_logger(), "끝났졍");
+      if (finish < 50) {
+        rubber_offset_value_ = -50;
+        finish++;
+        RCLCPP_INFO(get_logger(), "하드코딩실행중");
+      }
+
+      else{
+        rubber_end_value_ = 1;  // 최종 종료
+        RCLCPP_INFO(get_logger(), "끝났졍");
+      }
     }
   } // <-- scanCallback 끝
 
@@ -196,6 +202,8 @@ private:
   int   window_size_;
   float scale_;
   const float OFFSET_GAIN_;
+  int start = 0;
+  int finish = 0;
 
   int32_t rubber_offset_value_;
   int32_t rubber_end_value_;
