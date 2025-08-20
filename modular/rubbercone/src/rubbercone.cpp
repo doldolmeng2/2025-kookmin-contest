@@ -52,7 +52,7 @@ private:
     pts.reserve(msg->ranges.size());
     for (float range : msg->ranges) {
       if (std::isfinite(range) &&
-          range >= 0.18f && range <= 0.90f &&
+          range >= 0.18f && range <= 1.00f &&
           angle >= -ANG_MAX && angle <= ANG_MAX) {
         // 좌표계: x=전방, y=좌측(표준적 레이저 프레임 가정)
         pts.emplace_back(range * std::cos(angle),
@@ -91,8 +91,8 @@ private:
       group.push_back(first);
       cv::Point2f cur = first;
 
-      // 최대 5개까지 확장
-      while (group.size() < 5) {
+      // 최대 4개까지 확장
+      while (group.size() < 4) {
         cv::Point2f next{};
         float best = 1e6f;
         bool ok = false;
@@ -132,7 +132,7 @@ private:
 
     if (left_group.size() >= 2 && right_group.size() >= 2) {
       // 케이스 1: 양쪽 2개 이상
-      if (start < 300) {
+      if (start < 100) {
         start++;
       }
         cv::Point2f lm{ (left_group[0].x + left_group[1].x) * 0.5f,
@@ -160,10 +160,11 @@ private:
 
       } 
 
-      else if (start >= 300) {
+      else if (start == 100) {
         has_mid = false;
-      
-        }
+        RCLCPP_INFO(get_logger(), "has_mid false 다이자식들아");
+
+      }
       //else if (left_group.empty() && right_group.size() >= 2  ) {
     //     // 케이스 4: 오른쪽 2개 이상만 보일 때
     //      finish = 1;
@@ -176,6 +177,7 @@ private:
     //        // 반시계 방향으로 90° 회전시킨 단위 법선 벡터
     //        cv::Point2f unit_perp{ -v.y / norm, v.x / norm };
     //        target = R0 + unit_perp * 0.42f;
+    //        has_mid = false;}
     // }
     if (has_mid) {
       float offset = -target.y * OFFSET_GAIN_;
@@ -183,16 +185,8 @@ private:
       rubber_end_value_ = 0;
     } 
     else  { 
-      if (finish < 50) {
-        rubber_offset_value_ = -50;
-        finish++;
-        RCLCPP_INFO(get_logger(), "하드코딩실행중");
-      }
-
-      else{
-        rubber_end_value_ = 1;  // 최종 종료
-        RCLCPP_INFO(get_logger(), "끝났졍");
-      }
+      rubber_end_value_ = 1;  // 최종 종료
+      RCLCPP_INFO(get_logger(), "끝났졍");
     }
   } // <-- scanCallback 끝
 
@@ -203,7 +197,6 @@ private:
   float scale_;
   const float OFFSET_GAIN_;
   int start = 0;
-  int finish = 0;
 
   int32_t rubber_offset_value_;
   int32_t rubber_end_value_;
