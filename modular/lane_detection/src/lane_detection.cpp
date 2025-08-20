@@ -760,7 +760,7 @@ int main(int argc, char** argv) {
 
     // JSON 파라미터 파일 로드 (경로 환경에 맞게 수정)
     Config config = load_config(
-        "/home/xytron/xycar_ws/src/orda/modular/lane_detection/lane_detection_parameter.json"
+        "/home/helloosy/250805/2025-kookmin-contest/modular/lane_detection/lane_detection_parameter.json"
     );
 
     // 노드 생성 및 실행
