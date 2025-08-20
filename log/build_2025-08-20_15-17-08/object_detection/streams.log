@@ -1,0 +1,69 @@
+[0.737s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/object_detection': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake /home/helloosy/250805/2025-kookmin-contest/modular/object_detection -DCMAKE_INSTALL_PREFIX=/home/helloosy/250805/2025-kookmin-contest/install/object_detection
+[0.934s] -- The C compiler identification is GNU 11.4.0
+[1.632s] -- The CXX compiler identification is GNU 11.4.0
+[2.343s] -- Detecting C compiler ABI info
+[2.743s] -- Detecting C compiler ABI info - done
+[2.761s] -- Check for working C compiler: /usr/bin/cc - skipped
+[2.762s] -- Detecting C compile features
+[2.763s] -- Detecting C compile features - done
+[2.771s] -- Detecting CXX compiler ABI info
+[3.101s] -- Detecting CXX compiler ABI info - done
+[3.118s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[3.118s] -- Detecting CXX compile features
+[3.119s] -- Detecting CXX compile features - done
+[3.124s] -- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+[3.861s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[4.042s] -- Found rclcpp: 16.0.12 (/opt/ros/humble/share/rclcpp/cmake)
+[4.295s] -- Found rosidl_generator_c: 3.1.6 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[4.305s] -- Found rosidl_adapter: 3.1.6 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[4.320s] -- Found rosidl_generator_cpp: 3.1.6 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[4.341s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[4.368s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[4.448s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[4.453s] -- Found rmw_fastrtps_cpp: 6.2.7 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[6.145s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[7.310s] -- Found FastRTPS: /opt/ros/humble/include  
+[11.999s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[12.025s] -- Looking for pthread.h
+[12.411s] -- Looking for pthread.h - found
+[12.412s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[12.810s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[12.815s] -- Found Threads: TRUE  
+[12.949s] -- Found sensor_msgs: 4.9.0 (/opt/ros/humble/share/sensor_msgs/cmake)
+[13.055s] -- Found OpenCV: /usr/local (found version "4.9.0") 
+[13.060s] -- Found cv_bridge: 3.2.1 (/opt/ros/humble/share/cv_bridge/cmake)
+[13.336s] -- Configuring done
+[13.391s] -- Generating done
+[13.411s] -- Build files have been written to: /home/helloosy/250805/2025-kookmin-contest/build/object_detection
+[13.465s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/object_detection' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake /home/helloosy/250805/2025-kookmin-contest/modular/object_detection -DCMAKE_INSTALL_PREFIX=/home/helloosy/250805/2025-kookmin-contest/install/object_detection
+[13.491s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/object_detection': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --build /home/helloosy/250805/2025-kookmin-contest/build/object_detection -- -j8 -l8
+[13.619s] [ 50%] [32mBuilding CXX object CMakeFiles/object_node.dir/src/object_detection.cpp.o[0m
+[23.335s] [01m[K/home/helloosy/250805/2025-kookmin-contest/modular/object_detection/src/object_detection.cpp:[m[K In member function ‘[01m[Kvoid ObjectDetectionNode::onTimer()[m[K’:
+[23.339s] [01m[K/home/helloosy/250805/2025-kookmin-contest/modular/object_detection/src/object_detection.cpp:190:12:[m[K [01;35m[Kwarning: [m[Kvariable ‘[01m[Kok[m[K’ set but not used [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wunused-but-set-variable-Wunused-but-set-variable]8;;[m[K]
+[23.340s]   190 |       bool [01;35m[Kok[m[K;
+[23.340s]       |            [01;35m[K^~[m[K
+[47.021s] [100%] [32m[1mLinking CXX executable object_node[0m
+[48.203s] /usr/bin/ld: warning: libopencv_imgproc.so.4.5d, needed by /opt/ros/humble/lib/libcv_bridge.so, may conflict with libopencv_imgproc.so.409
+[48.204s] /usr/bin/ld: warning: libopencv_core.so.4.5d, needed by /opt/ros/humble/lib/libcv_bridge.so, may conflict with libopencv_core.so.409
+[49.347s] [100%] Built target object_node
+[49.360s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/object_detection' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --build /home/helloosy/250805/2025-kookmin-contest/build/object_detection -- -j8 -l8
+[49.362s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/object_detection': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --install /home/helloosy/250805/2025-kookmin-contest/build/object_detection
+[49.370s] -- Install configuration: ""
+[49.371s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/lib/object_detection/object_node
+[49.377s] -- Set runtime path of "/home/helloosy/250805/2025-kookmin-contest/install/object_detection/lib/object_detection/object_node" to ""
+[49.380s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/ament_index/resource_index/package_run_dependencies/object_detection
+[49.381s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/ament_index/resource_index/parent_prefix_path/object_detection
+[49.382s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/environment/ament_prefix_path.sh
+[49.382s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/environment/ament_prefix_path.dsv
+[49.383s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/environment/path.sh
+[49.383s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/environment/path.dsv
+[49.384s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/local_setup.bash
+[49.384s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/local_setup.sh
+[49.385s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/local_setup.zsh
+[49.385s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/local_setup.dsv
+[49.386s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/package.dsv
+[49.387s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/ament_index/resource_index/packages/object_detection
+[49.387s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/cmake/object_detectionConfig.cmake
+[49.388s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/cmake/object_detectionConfig-version.cmake
+[49.389s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/package.xml
+[49.392s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/object_detection' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --install /home/helloosy/250805/2025-kookmin-contest/build/object_detection

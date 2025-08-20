@@ -1,0 +1,40 @@
+[1.669s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/modular/main': PYTHONPATH=/home/helloosy/250805/2025-kookmin-contest/build/main/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/main build --build-base /home/helloosy/250805/2025-kookmin-contest/build/main/build install --record /home/helloosy/250805/2025-kookmin-contest/build/main/install.log --single-version-externally-managed install_data
+[8.074s] /home/helloosy/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'tests_require'
+[8.076s]   warnings.warn(msg)
+[8.085s] running egg_info
+[8.086s] creating ../../build/main/main.egg-info
+[8.087s] writing ../../build/main/main.egg-info/PKG-INFO
+[8.091s] writing dependency_links to ../../build/main/main.egg-info/dependency_links.txt
+[8.091s] writing entry points to ../../build/main/main.egg-info/entry_points.txt
+[8.092s] writing requirements to ../../build/main/main.egg-info/requires.txt
+[8.092s] writing top-level names to ../../build/main/main.egg-info/top_level.txt
+[8.092s] writing manifest file '../../build/main/main.egg-info/SOURCES.txt'
+[8.092s] reading manifest file '../../build/main/main.egg-info/SOURCES.txt'
+[8.093s] writing manifest file '../../build/main/main.egg-info/SOURCES.txt'
+[8.093s] running build
+[8.093s] running build_py
+[8.093s] creating /home/helloosy/250805/2025-kookmin-contest/build/main/build/lib/main
+[8.094s] copying main/control.py -> /home/helloosy/250805/2025-kookmin-contest/build/main/build/lib/main
+[8.094s] copying main/__init__.py -> /home/helloosy/250805/2025-kookmin-contest/build/main/build/lib/main
+[8.094s] copying main/main.py -> /home/helloosy/250805/2025-kookmin-contest/build/main/build/lib/main
+[8.094s] running install
+[8.094s] running install_lib
+[8.094s] creating /home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages/main
+[8.095s] copying /home/helloosy/250805/2025-kookmin-contest/build/main/build/lib/main/control.py -> /home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages/main
+[8.095s] copying /home/helloosy/250805/2025-kookmin-contest/build/main/build/lib/main/__init__.py -> /home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages/main
+[8.095s] copying /home/helloosy/250805/2025-kookmin-contest/build/main/build/lib/main/main.py -> /home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages/main
+[8.095s] byte-compiling /home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages/main/control.py to control.cpython-310.pyc
+[8.096s] byte-compiling /home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages/main/__init__.py to __init__.cpython-310.pyc
+[8.096s] byte-compiling /home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages/main/main.py to main.cpython-310.pyc
+[8.096s] running install_data
+[8.097s] creating /home/helloosy/250805/2025-kookmin-contest/install/main/share/ament_index/resource_index/packages
+[8.098s] copying resource/main -> /home/helloosy/250805/2025-kookmin-contest/install/main/share/ament_index/resource_index/packages
+[8.098s] copying package.xml -> /home/helloosy/250805/2025-kookmin-contest/install/main/share/main
+[8.098s] creating /home/helloosy/250805/2025-kookmin-contest/install/main/share/main/launch
+[8.098s] copying launch/module_drive.py -> /home/helloosy/250805/2025-kookmin-contest/install/main/share/main/launch
+[8.099s] running install_egg_info
+[8.099s] Copying ../../build/main/main.egg-info to /home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages/main-0.0.0-py3.10.egg-info
+[8.099s] running install_scripts
+[8.099s] Installing main_node script to /home/helloosy/250805/2025-kookmin-contest/install/main/lib/main
+[8.099s] writing list of installed files to '/home/helloosy/250805/2025-kookmin-contest/build/main/install.log'
+[8.101s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/modular/main' returned '0': PYTHONPATH=/home/helloosy/250805/2025-kookmin-contest/build/main/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/helloosy/250805/2025-kookmin-contest/install/main/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/main build --build-base /home/helloosy/250805/2025-kookmin-contest/build/main/build install --record /home/helloosy/250805/2025-kookmin-contest/build/main/install.log --single-version-externally-managed install_data

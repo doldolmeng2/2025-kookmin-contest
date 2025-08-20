@@ -1,0 +1,10 @@
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/uninstall.dir
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/sensors_viewer_uninstall.dir
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/sensors_viewer.dir
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/test.dir
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/edit_cache.dir
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/rebuild_cache.dir
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/list_install_components.dir
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/install.dir
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/install/local.dir
+/home/helloosy/250805/2025-kookmin-contest/build/sensors_viewer/CMakeFiles/install/strip.dir

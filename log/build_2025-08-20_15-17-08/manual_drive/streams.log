@@ -1,0 +1,38 @@
+[1.677s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/function/manual_drive': PYTHONPATH=/home/helloosy/250805/2025-kookmin-contest/build/manual_drive/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/helloosy/250805/2025-kookmin-contest/install/manual_drive/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/manual_drive build --build-base /home/helloosy/250805/2025-kookmin-contest/build/manual_drive/build install --record /home/helloosy/250805/2025-kookmin-contest/build/manual_drive/install.log --single-version-externally-managed install_data
+[8.066s] running egg_info
+[8.066s] creating ../../build/manual_drive/manual_drive.egg-info
+[8.066s] writing ../../build/manual_drive/manual_drive.egg-info/PKG-INFO
+[8.066s] writing dependency_links to ../../build/manual_drive/manual_drive.egg-info/dependency_links.txt
+[8.066s] writing entry points to ../../build/manual_drive/manual_drive.egg-info/entry_points.txt
+[8.066s] writing requirements to ../../build/manual_drive/manual_drive.egg-info/requires.txt
+[8.066s] writing top-level names to ../../build/manual_drive/manual_drive.egg-info/top_level.txt
+[8.066s] writing manifest file '../../build/manual_drive/manual_drive.egg-info/SOURCES.txt'
+[8.067s] reading manifest file '../../build/manual_drive/manual_drive.egg-info/SOURCES.txt'
+[8.067s] writing manifest file '../../build/manual_drive/manual_drive.egg-info/SOURCES.txt'
+[8.067s] running build
+[8.067s] running build_py
+[8.067s] creating /home/helloosy/250805/2025-kookmin-contest/build/manual_drive/build/lib/manual_drive
+[8.067s] copying manual_drive/joystic.py -> /home/helloosy/250805/2025-kookmin-contest/build/manual_drive/build/lib/manual_drive
+[8.067s] copying manual_drive/__init__.py -> /home/helloosy/250805/2025-kookmin-contest/build/manual_drive/build/lib/manual_drive
+[8.067s] running install
+[8.067s] running install_lib
+[8.067s] creating /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/lib/python3.10/site-packages/manual_drive
+[8.068s] copying /home/helloosy/250805/2025-kookmin-contest/build/manual_drive/build/lib/manual_drive/joystic.py -> /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/lib/python3.10/site-packages/manual_drive
+[8.068s] copying /home/helloosy/250805/2025-kookmin-contest/build/manual_drive/build/lib/manual_drive/__init__.py -> /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/lib/python3.10/site-packages/manual_drive
+[8.068s] byte-compiling /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/lib/python3.10/site-packages/manual_drive/joystic.py to joystic.cpython-310.pyc
+[8.068s] byte-compiling /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/lib/python3.10/site-packages/manual_drive/__init__.py to __init__.cpython-310.pyc
+[8.068s] running install_data
+[8.068s] creating /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/share/ament_index/resource_index/packages
+[8.068s] copying resource/manual_drive -> /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/share/ament_index/resource_index/packages
+[8.068s] copying package.xml -> /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/share/manual_drive
+[8.069s] creating /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/share/manual_drive/launch
+[8.069s] copying launch/ordabag.launch.py -> /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/share/manual_drive/launch
+[8.069s] copying launch/manual_drive.launch.py -> /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/share/manual_drive/launch
+[8.069s] running install_egg_info
+[8.069s] Copying ../../build/manual_drive/manual_drive.egg-info to /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/lib/python3.10/site-packages/manual_drive-0.0.0-py3.10.egg-info
+[8.070s] running install_scripts
+[8.074s] Installing joystic script to /home/helloosy/250805/2025-kookmin-contest/install/manual_drive/lib/manual_drive
+[8.074s] writing list of installed files to '/home/helloosy/250805/2025-kookmin-contest/build/manual_drive/install.log'
+[8.090s] /home/helloosy/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'tests_require'
+[8.090s]   warnings.warn(msg)
+[8.111s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/function/manual_drive' returned '0': PYTHONPATH=/home/helloosy/250805/2025-kookmin-contest/build/manual_drive/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/helloosy/250805/2025-kookmin-contest/install/manual_drive/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/manual_drive build --build-base /home/helloosy/250805/2025-kookmin-contest/build/manual_drive/build install --record /home/helloosy/250805/2025-kookmin-contest/build/manual_drive/install.log --single-version-externally-managed install_data

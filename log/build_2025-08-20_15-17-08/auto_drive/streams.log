@@ -1,0 +1,70 @@
+[0.076s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/auto_drive': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake /home/helloosy/250805/2025-kookmin-contest/monolithic/auto_drive -DCMAKE_INSTALL_PREFIX=/home/helloosy/250805/2025-kookmin-contest/install/auto_drive
+[0.789s] -- The C compiler identification is GNU 11.4.0
+[0.819s] -- The CXX compiler identification is GNU 11.4.0
+[1.158s] -- Detecting C compiler ABI info
+[1.399s] -- Detecting C compiler ABI info - done
+[1.417s] -- Check for working C compiler: /usr/bin/cc - skipped
+[1.418s] -- Detecting C compile features
+[1.418s] -- Detecting C compile features - done
+[1.422s] -- Detecting CXX compiler ABI info
+[1.776s] -- Detecting CXX compiler ABI info - done
+[1.793s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[1.794s] -- Detecting CXX compile features
+[1.795s] -- Detecting CXX compile features - done
+[1.802s] -- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+[2.726s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[2.980s] -- Found rclcpp: 16.0.12 (/opt/ros/humble/share/rclcpp/cmake)
+[3.280s] -- Found rosidl_generator_c: 3.1.6 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[3.293s] -- Found rosidl_adapter: 3.1.6 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[3.310s] -- Found rosidl_generator_cpp: 3.1.6 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[3.336s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[3.376s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[3.464s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[3.466s] -- Found rmw_fastrtps_cpp: 6.2.7 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[4.439s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[5.377s] -- Found FastRTPS: /opt/ros/humble/include  
+[7.276s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[7.288s] -- Looking for pthread.h
+[7.492s] -- Looking for pthread.h - found
+[7.493s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[7.701s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[7.703s] -- Found Threads: TRUE  
+[7.809s] -- Found sensor_msgs: 4.9.0 (/opt/ros/humble/share/sensor_msgs/cmake)
+[7.880s] -- Found OpenCV: /usr/local (found version "4.9.0") 
+[7.886s] -- Found ament_lint_auto: 0.12.12 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[8.027s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[8.027s] -- Configured cppcheck include dirs: $<BUILD_INTERFACE:/home/helloosy/250805/2025-kookmin-contest/monolithic/auto_drive/include>
+[8.028s] -- Configured cppcheck exclude dirs and/or files: 
+[8.029s] -- Added test 'lint_cmake' to check CMake code style
+[8.031s] -- Added test 'uncrustify' to check C / C++ code style
+[8.031s] -- Configured uncrustify additional arguments: 
+[8.032s] -- Added test 'xmllint' to check XML markup files
+[8.035s] -- Configuring done
+[8.067s] -- Generating done
+[8.077s] -- Build files have been written to: /home/helloosy/250805/2025-kookmin-contest/build/auto_drive
+[8.095s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/auto_drive' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake /home/helloosy/250805/2025-kookmin-contest/monolithic/auto_drive -DCMAKE_INSTALL_PREFIX=/home/helloosy/250805/2025-kookmin-contest/install/auto_drive
+[8.123s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/auto_drive': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --build /home/helloosy/250805/2025-kookmin-contest/build/auto_drive -- -j8 -l8
+[8.192s] [ 50%] [32mBuilding CXX object CMakeFiles/auto_drive.dir/src/auto_drive.cpp.o[0m
+[8.791s] [100%] [32m[1mLinking CXX executable auto_drive[0m
+[9.545s] [100%] Built target auto_drive
+[9.586s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/auto_drive' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --build /home/helloosy/250805/2025-kookmin-contest/build/auto_drive -- -j8 -l8
+[9.600s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/auto_drive': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --install /home/helloosy/250805/2025-kookmin-contest/build/auto_drive
+[10.156s] -- Install configuration: ""
+[10.156s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/lib/auto_drive/auto_drive
+[10.157s] -- Set runtime path of "/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/lib/auto_drive/auto_drive" to ""
+[10.157s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/ament_index/resource_index/package_run_dependencies/auto_drive
+[10.157s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/ament_index/resource_index/parent_prefix_path/auto_drive
+[10.157s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/environment/ament_prefix_path.sh
+[10.157s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/environment/ament_prefix_path.dsv
+[10.157s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/environment/path.sh
+[10.157s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/environment/path.dsv
+[10.158s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/local_setup.bash
+[10.158s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/local_setup.sh
+[10.158s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/local_setup.zsh
+[10.158s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/local_setup.dsv
+[10.158s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/package.dsv
+[10.158s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/ament_index/resource_index/packages/auto_drive
+[10.158s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/cmake/auto_driveConfig.cmake
+[10.158s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/cmake/auto_driveConfig-version.cmake
+[10.159s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/package.xml
+[10.172s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/auto_drive' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --install /home/helloosy/250805/2025-kookmin-contest/build/auto_drive

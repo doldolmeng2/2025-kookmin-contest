@@ -1,0 +1,88 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-75c11fc5ed5e9f36dcfd.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.12"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"name" : "",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "lane_detection",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "hls_hsv_tuner_node::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-hls_hsv_tuner_node-84b95e8e46aae063f77e.json",
+					"name" : "hls_hsv_tuner_node",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "lane_detection_uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-lane_detection_uninstall-05f97d6ac1f2c2c9a4e1.json",
+					"name" : "lane_detection_uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "lane_node::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-lane_node-000d74d14522a3c6476c.json",
+					"name" : "lane_node",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-uninstall-11cffbca59f03b85a636.json",
+					"name" : "uninstall",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/helloosy/250805/2025-kookmin-contest/build/lane_detection",
+		"source" : "/home/helloosy/250805/2025-kookmin-contest/modular/lane_detection"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

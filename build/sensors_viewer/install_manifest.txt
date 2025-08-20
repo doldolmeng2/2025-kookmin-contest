@@ -1,0 +1,16 @@
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/lib/sensors_viewer/sensors_viewer
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/ament_index/resource_index/package_run_dependencies/sensors_viewer
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/ament_index/resource_index/parent_prefix_path/sensors_viewer
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/environment/ament_prefix_path.sh
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/environment/ament_prefix_path.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/environment/path.sh
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/environment/path.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/local_setup.bash
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/local_setup.sh
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/local_setup.zsh
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/local_setup.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/package.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/ament_index/resource_index/packages/sensors_viewer
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/cmake/sensors_viewerConfig.cmake
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/cmake/sensors_viewerConfig-version.cmake
+/home/helloosy/250805/2025-kookmin-contest/install/sensors_viewer/share/sensors_viewer/package.xml

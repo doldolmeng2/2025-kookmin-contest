@@ -1,0 +1,16 @@
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/lib/image_resize/resize_node
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/ament_index/resource_index/package_run_dependencies/image_resize
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/ament_index/resource_index/parent_prefix_path/image_resize
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/environment/ament_prefix_path.sh
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/environment/ament_prefix_path.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/environment/path.sh
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/environment/path.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/local_setup.bash
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/local_setup.sh
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/local_setup.zsh
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/local_setup.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/package.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/ament_index/resource_index/packages/image_resize
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/cmake/image_resizeConfig.cmake
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/cmake/image_resizeConfig-version.cmake
+/home/helloosy/250805/2025-kookmin-contest/install/image_resize/share/image_resize/package.xml

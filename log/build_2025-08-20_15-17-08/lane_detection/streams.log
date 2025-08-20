@@ -1,0 +1,78 @@
+[0.073s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/lane_detection': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake /home/helloosy/250805/2025-kookmin-contest/modular/lane_detection -DCMAKE_INSTALL_PREFIX=/home/helloosy/250805/2025-kookmin-contest/install/lane_detection
+[0.774s] -- The C compiler identification is GNU 11.4.0
+[0.774s] -- The CXX compiler identification is GNU 11.4.0
+[1.150s] -- Detecting C compiler ABI info
+[1.381s] -- Detecting C compiler ABI info - done
+[1.394s] -- Check for working C compiler: /usr/bin/cc - skipped
+[1.395s] -- Detecting C compile features
+[1.398s] -- Detecting C compile features - done
+[1.402s] -- Detecting CXX compiler ABI info
+[1.750s] -- Detecting CXX compiler ABI info - done
+[1.766s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[1.767s] -- Detecting CXX compile features
+[1.767s] -- Detecting CXX compile features - done
+[1.784s] -- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+[2.801s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[3.030s] -- Found rclcpp: 16.0.12 (/opt/ros/humble/share/rclcpp/cmake)
+[3.340s] -- Found rosidl_generator_c: 3.1.6 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[3.352s] -- Found rosidl_adapter: 3.1.6 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[3.366s] -- Found rosidl_generator_cpp: 3.1.6 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[3.388s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[3.415s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[3.490s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[3.494s] -- Found rmw_fastrtps_cpp: 6.2.7 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[4.421s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[5.392s] -- Found FastRTPS: /opt/ros/humble/include  
+[8.700s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[8.715s] -- Looking for pthread.h
+[8.949s] -- Looking for pthread.h - found
+[8.950s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[9.222s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[9.222s] -- Found Threads: TRUE  
+[9.369s] -- Found sensor_msgs: 4.9.0 (/opt/ros/humble/share/sensor_msgs/cmake)
+[9.457s] -- Found OpenCV: /usr (found version "4.5.4") 
+[9.460s] -- Found cv_bridge: 3.2.1 (/opt/ros/humble/share/cv_bridge/cmake)
+[9.469s] -- Found nlohmann_json: /usr/lib/cmake/nlohmann_json/nlohmann_jsonConfig.cmake (found version "3.10.5") 
+[9.482s] -- Found ament_lint_auto: 0.12.12 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[9.651s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[9.651s] -- Configured cppcheck include dirs: $<BUILD_INTERFACE:/home/helloosy/250805/2025-kookmin-contest/modular/lane_detection/include>
+[9.651s] -- Configured cppcheck exclude dirs and/or files: 
+[9.652s] -- Added test 'lint_cmake' to check CMake code style
+[9.654s] -- Added test 'uncrustify' to check C / C++ code style
+[9.655s] -- Configured uncrustify additional arguments: 
+[9.656s] -- Added test 'xmllint' to check XML markup files
+[9.665s] -- Configuring done
+[9.712s] -- Generating done
+[9.733s] -- Build files have been written to: /home/helloosy/250805/2025-kookmin-contest/build/lane_detection
+[9.759s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/lane_detection' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake /home/helloosy/250805/2025-kookmin-contest/modular/lane_detection -DCMAKE_INSTALL_PREFIX=/home/helloosy/250805/2025-kookmin-contest/install/lane_detection
+[9.760s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/lane_detection': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --build /home/helloosy/250805/2025-kookmin-contest/build/lane_detection -- -j8 -l8
+[10.153s] [ 20%] [32mBuilding CXX object CMakeFiles/lane_node.dir/src/lane_detection.cpp.o[0m
+[10.154s] [ 40%] [32mBuilding CXX object CMakeFiles/lane_node.dir/src/parameter_loader.cpp.o[0m
+[10.154s] [ 60%] [32mBuilding CXX object CMakeFiles/hls_hsv_tuner_node.dir/src/hls_hsv_tuner.cpp.o[0m
+[36.359s] [ 80%] [32m[1mLinking CXX executable hls_hsv_tuner_node[0m
+[39.911s] [ 80%] Built target hls_hsv_tuner_node
+[45.054s] [100%] [32m[1mLinking CXX executable lane_node[0m
+[47.556s] [100%] Built target lane_node
+[47.582s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/lane_detection' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --build /home/helloosy/250805/2025-kookmin-contest/build/lane_detection -- -j8 -l8
+[47.587s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/lane_detection': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --install /home/helloosy/250805/2025-kookmin-contest/build/lane_detection
+[47.600s] -- Install configuration: ""
+[47.603s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/lib/lane_detection/lane_node
+[47.613s] -- Set runtime path of "/home/helloosy/250805/2025-kookmin-contest/install/lane_detection/lib/lane_detection/lane_node" to ""
+[47.613s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/lib/lane_detection/hls_hsv_tuner_node
+[47.618s] -- Set runtime path of "/home/helloosy/250805/2025-kookmin-contest/install/lane_detection/lib/lane_detection/hls_hsv_tuner_node" to ""
+[47.624s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/ament_index/resource_index/package_run_dependencies/lane_detection
+[47.627s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/ament_index/resource_index/parent_prefix_path/lane_detection
+[47.631s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/environment/ament_prefix_path.sh
+[47.631s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/environment/ament_prefix_path.dsv
+[47.632s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/environment/path.sh
+[47.632s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/environment/path.dsv
+[47.633s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/local_setup.bash
+[47.634s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/local_setup.sh
+[47.634s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/local_setup.zsh
+[47.635s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/local_setup.dsv
+[47.636s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/package.dsv
+[47.638s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/ament_index/resource_index/packages/lane_detection
+[47.639s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/cmake/lane_detectionConfig.cmake
+[47.640s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/cmake/lane_detectionConfig-version.cmake
+[47.641s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/lane_detection/share/lane_detection/package.xml
+[47.646s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/lane_detection' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --install /home/helloosy/250805/2025-kookmin-contest/build/lane_detection

@@ -1,0 +1,16 @@
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/lib/auto_drive/auto_drive
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/ament_index/resource_index/package_run_dependencies/auto_drive
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/ament_index/resource_index/parent_prefix_path/auto_drive
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/environment/ament_prefix_path.sh
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/environment/ament_prefix_path.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/environment/path.sh
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/environment/path.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/local_setup.bash
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/local_setup.sh
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/local_setup.zsh
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/local_setup.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/package.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/ament_index/resource_index/packages/auto_drive
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/cmake/auto_driveConfig.cmake
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/cmake/auto_driveConfig-version.cmake
+/home/helloosy/250805/2025-kookmin-contest/install/auto_drive/share/auto_drive/package.xml

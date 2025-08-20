@@ -1,0 +1,16 @@
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/lib/object_detection/object_node
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/ament_index/resource_index/package_run_dependencies/object_detection
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/ament_index/resource_index/parent_prefix_path/object_detection
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/environment/ament_prefix_path.sh
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/environment/ament_prefix_path.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/environment/path.sh
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/environment/path.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/local_setup.bash
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/local_setup.sh
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/local_setup.zsh
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/local_setup.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/package.dsv
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/ament_index/resource_index/packages/object_detection
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/cmake/object_detectionConfig.cmake
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/cmake/object_detectionConfig-version.cmake
+/home/helloosy/250805/2025-kookmin-contest/install/object_detection/share/object_detection/package.xml

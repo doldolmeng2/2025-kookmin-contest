@@ -1,0 +1,71 @@
+[0.741s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/rubbercone': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake /home/helloosy/250805/2025-kookmin-contest/modular/rubbercone -DCMAKE_INSTALL_PREFIX=/home/helloosy/250805/2025-kookmin-contest/install/rubbercone
+[0.947s] -- The C compiler identification is GNU 11.4.0
+[1.646s] -- The CXX compiler identification is GNU 11.4.0
+[2.194s] -- Detecting C compiler ABI info
+[2.564s] -- Detecting C compiler ABI info - done
+[2.603s] -- Check for working C compiler: /usr/bin/cc - skipped
+[2.604s] -- Detecting C compile features
+[2.608s] -- Detecting C compile features - done
+[2.624s] -- Detecting CXX compiler ABI info
+[3.015s] -- Detecting CXX compiler ABI info - done
+[3.032s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[3.033s] -- Detecting CXX compile features
+[3.034s] -- Detecting CXX compile features - done
+[3.038s] -- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+[3.779s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[3.974s] -- Found rclcpp: 16.0.12 (/opt/ros/humble/share/rclcpp/cmake)
+[4.225s] -- Found rosidl_generator_c: 3.1.6 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[4.235s] -- Found rosidl_adapter: 3.1.6 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[4.248s] -- Found rosidl_generator_cpp: 3.1.6 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[4.267s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[4.296s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[4.373s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[4.378s] -- Found rmw_fastrtps_cpp: 6.2.7 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[5.217s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[6.329s] -- Found FastRTPS: /opt/ros/humble/include  
+[10.330s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[10.349s] -- Looking for pthread.h
+[10.776s] -- Looking for pthread.h - found
+[10.778s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[11.234s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[11.234s] -- Found Threads: TRUE  
+[11.419s] -- Found sensor_msgs: 4.9.0 (/opt/ros/humble/share/sensor_msgs/cmake)
+[11.522s] -- Found OpenCV: /usr (found version "4.5.4") 
+[11.525s] -- Found cv_bridge: 3.2.1 (/opt/ros/humble/share/cv_bridge/cmake)
+[11.536s] -- Found ament_lint_auto: 0.12.12 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[11.903s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[11.907s] -- Configured cppcheck include dirs: $<BUILD_INTERFACE:/home/helloosy/250805/2025-kookmin-contest/modular/rubbercone/include>
+[11.907s] -- Configured cppcheck exclude dirs and/or files: 
+[11.911s] -- Added test 'lint_cmake' to check CMake code style
+[11.917s] -- Added test 'uncrustify' to check C / C++ code style
+[11.918s] -- Configured uncrustify additional arguments: 
+[11.924s] -- Added test 'xmllint' to check XML markup files
+[11.933s] -- Configuring done
+[11.999s] -- Generating done
+[12.014s] -- Build files have been written to: /home/helloosy/250805/2025-kookmin-contest/build/rubbercone
+[12.051s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/rubbercone' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake /home/helloosy/250805/2025-kookmin-contest/modular/rubbercone -DCMAKE_INSTALL_PREFIX=/home/helloosy/250805/2025-kookmin-contest/install/rubbercone
+[12.056s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/rubbercone': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --build /home/helloosy/250805/2025-kookmin-contest/build/rubbercone -- -j8 -l8
+[12.216s] [ 50%] [32mBuilding CXX object CMakeFiles/rubbercone_node.dir/src/rubbercone.cpp.o[0m
+[38.697s] [100%] [32m[1mLinking CXX executable rubbercone_node[0m
+[40.459s] [100%] Built target rubbercone_node
+[40.479s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/rubbercone' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --build /home/helloosy/250805/2025-kookmin-contest/build/rubbercone -- -j8 -l8
+[40.483s] Invoking command in '/home/helloosy/250805/2025-kookmin-contest/build/rubbercone': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --install /home/helloosy/250805/2025-kookmin-contest/build/rubbercone
+[40.492s] -- Install configuration: ""
+[40.494s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/lib/rubbercone/rubbercone_node
+[40.500s] -- Set runtime path of "/home/helloosy/250805/2025-kookmin-contest/install/rubbercone/lib/rubbercone/rubbercone_node" to ""
+[40.502s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/ament_index/resource_index/package_run_dependencies/rubbercone
+[40.503s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/ament_index/resource_index/parent_prefix_path/rubbercone
+[40.505s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/environment/ament_prefix_path.sh
+[40.505s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/environment/ament_prefix_path.dsv
+[40.506s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/environment/path.sh
+[40.506s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/environment/path.dsv
+[40.506s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/local_setup.bash
+[40.507s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/local_setup.sh
+[40.508s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/local_setup.zsh
+[40.508s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/local_setup.dsv
+[40.509s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/package.dsv
+[40.514s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/ament_index/resource_index/packages/rubbercone
+[40.514s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/cmake/rubberconeConfig.cmake
+[40.514s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/cmake/rubberconeConfig-version.cmake
+[40.514s] -- Installing: /home/helloosy/250805/2025-kookmin-contest/install/rubbercone/share/rubbercone/package.xml
+[40.519s] Invoked command in '/home/helloosy/250805/2025-kookmin-contest/build/rubbercone' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/helloosy/hackathon_250712/install/usb_cam_250712:/home/helloosy/hackathon_250712/install/line_detection:/home/helloosy/ros2_ws/install/mjpeg_publisher:/home/helloosy/ros2_ws/install/apriltag_marker_publisher:/opt/ros/humble /usr/bin/cmake --install /home/helloosy/250805/2025-kookmin-contest/build/rubbercone
