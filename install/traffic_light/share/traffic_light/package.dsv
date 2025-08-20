@@ -1,8 +1,0 @@
-source;share/traffic_light/hook/cmake_prefix_path.ps1
-source;share/traffic_light/hook/cmake_prefix_path.dsv
-source;share/traffic_light/hook/cmake_prefix_path.sh
-source;share/traffic_light/local_setup.bash
-source;share/traffic_light/local_setup.dsv
-source;share/traffic_light/local_setup.ps1
-source;share/traffic_light/local_setup.sh
-source;share/traffic_light/local_setup.zsh

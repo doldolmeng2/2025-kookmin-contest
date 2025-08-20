@@ -1,2 +1,0 @@
-[console_scripts]
-main_node = main.main:main
