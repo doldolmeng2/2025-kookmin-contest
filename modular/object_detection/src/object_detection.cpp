@@ -25,7 +25,7 @@ using std::placeholders::_1;
 
 class ObjectDetectionNode : public rclcpp::Node {
 public:
-  ObjectDetectionNode() : Node("object_detection_node") {
+  ObjectDetectionNode() : Node("object_node") {
     // 파라미터
     front_fov_deg_       = this->declare_parameter<double>("front_fov_deg", 10.0);
     range_min_m_         = this->declare_parameter<double>("range_min_m",   0.05);

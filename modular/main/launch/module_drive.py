@@ -96,7 +96,7 @@ def generate_launch_description():
         rubbercone_node,
         resize_node,
         lane_node,
-        # object_node,
+        object_node,
         joy_node,
         cam_launch,
         lidar_launch,

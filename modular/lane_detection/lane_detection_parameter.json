@@ -35,7 +35,7 @@
   "kernel_yellow_closing_size": 9,
   "kernel_yellow_opening_size": 3,
   
-  "center_reference_lane_one": 0.6,
+  "center_reference_lane_one": 0.65,
   "center_reference_lane_two": 0.35,
 
   "horizontal_noise_width": 80,
@@ -43,5 +43,5 @@
   "horizontal_noise_extra_pad": 30,
   "horizontal_band_corridor_ratio_thresh": 0.1,
   
-  "debug_view": false
+  "debug_view":false
 }

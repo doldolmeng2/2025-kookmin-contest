@@ -116,7 +116,7 @@ class Controller:
             # 장애물 접근: 차선 주행 조향 + PI 제어 속도
             self.angle = self._compute_steering_pd(LANE_DRIVE, offset)
             # self.speed = self._compute_obstacle_speed(obstacle_dist) if obstacle_dist > 0 else 0.0
-            self.speed = 5
+            self.speed = 1
 
         else:
             # 정의되지 않은 모드에서는 안전 정지

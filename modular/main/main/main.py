@@ -51,8 +51,8 @@ class MainNode(Node):
         self.rubbercone_offset = 0
         self.end_flag = 0
         self.lane_offset = 0
-#        self.object_info = -1 # -1: not detected, 0: left, 1: right
-        self.object_dist = 0 
+        self.object_info = -1 # -1: not detected, 0: left, 1: right
+        self.object_dist = 0
         self.traffic_green = False
         self.rubbercone_end_time = None
         self.into_lane_timer = 1.7 # 라바콘 끝나고 하드코딩 시간초
@@ -98,10 +98,8 @@ class MainNode(Node):
     def object_info_callback(self, msg: Float32MultiArray):
         # data = [exists, min_dist, angle, span, cluster_size]
         data = msg.data
-        if not data or len(data) < 5:
-            return
         self.obj_exists   = float(data[0])
-        self.obj_min_dist = float(data[1])
+        self.object_dist = float(data[1])
         self.obj_angle    = float(data[2])
         self.obj_span     = float(data[3])
         self.obj_cluster  = float(data[4])
@@ -110,7 +108,7 @@ class MainNode(Node):
         self.traffic_green = msg.data # True if traffic light is green
 
     def object_distance_callback(self, msg):
-        self.object_dist = msg.data # distance to the nearest object
+        self.object_dists = msg.data # distance to the nearest object
 
     def control_cycle(self):
         now = self.get_clock().now()
@@ -150,20 +148,21 @@ class MainNode(Node):
 #                self.mode = OBSTACLE_APPROACH
             elif self.mode == LANE_DRIVE:
                 cond_exists  = self.obj_exists >= 0.5
-                cond_dist    = self.obj_min_dist < 1.0
-                cond_cluster = self.obj_cluster < 15.0
+                cond_dist    = self.object_dist < 1.5
+                cond_cluster = self.obj_cluster < 25.0
                 if cond_exists and cond_dist and cond_cluster:
                     self.mode = OBSTACLE_APPROACH
                     print("장애물 접근")
 
-            elif self.mode == OBSTACLE_APPROACH and self.object_info != -1: # object_info is detected
-                if self.lane == self.object_info :  # same side 
-                    self.lane = 1 - self.object_info # change lane
+            elif self.mode == OBSTACLE_APPROACH: # object_info is detected
+                if self. object_dist < 0.5:
+                    if self.lane == 1:  # same side 
+                        self.lane = 2 # change lane
+                    else :
+                        self.lane = 1
                     self.mode = CHANGE_LANE
                 else:                               # different side
                     self.mode = LANE_DRIVE
-                self.object_dist = 0 # reset object distance
-                self.object_info = -1 # reset object info
 
             elif self.mode == CHANGE_LANE and self.is_change_end():
                 self.mode = LANE_DRIVE
@@ -246,7 +245,7 @@ class MainNode(Node):
 
 
     def is_change_end(self):
-        return True if abs(self.lane_offset) < 0 else False
+        return True if self.object_dist > 2.0 else False
 
 
 def main(args=None):
