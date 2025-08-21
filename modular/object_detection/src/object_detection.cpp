@@ -67,7 +67,10 @@ public:
       timer_ = this->create_wall_timer(
         std::chrono::milliseconds(33), std::bind(&ObjectDetectionNode::onTimer, this));
     }
-    
+    // ✅ 퍼블리시 전용 타이머 추가 (예: 30Hz)
+    pub_timer_ = this->create_wall_timer(
+      std::chrono::milliseconds(33),
+      std::bind(&ObjectDetectionNode::onPublishTick, this));
   }
 
   ~ObjectDetectionNode() override {
@@ -160,27 +163,19 @@ private:
     const double span = std::fabs(ang_end - ang_start);
     const float exists = (best.min_r <= detect_threshold_m_) ? 1.0f : 0.0f;
 
-    // <-- 여기서 YOLO 면적 읽어오기
-    float box_area;
+    // ✅ 상태만 저장
     {
-      std::lock_guard<std::mutex> lk(mtx_box_);
-      box_area = last_box_area_pix_; // 박스 없으면 0
+      std::lock_guard<std::mutex> lk(mtx_state_);
+      lidar_valid_   = true;
+      st_min_r_      = best.min_r;
+      st_min_r_ang_  = static_cast<float>(best.min_r_ang);
+      st_span_       = static_cast<float>(span);
+      st_count_      = best.count;
     }
 
-    std_msgs::msg::Float32MultiArray out;
-    out.data = {
-      exists,
-      best.min_r,
-      static_cast<float>(best.min_r_ang),
-      static_cast<float>(span),
-      static_cast<float>(best.count),
-      box_area                       // <-- 추가된 6번째 값
-    };
-    pub_obj_->publish(out);
-
+    // 디버그 패널 숫자 업데이트만 (선택)
     if (enable_gui_) {
       std::lock_guard<std::mutex> lk(mtx_);
-      dbg_exists_ = exists;
       dbg_dist_   = best.min_r;
       dbg_csize_  = static_cast<float>(best.count);
       last_rx_ok_ = true;
@@ -188,10 +183,18 @@ private:
     }
   }
 
+  void resetLidarState() {
+    std::lock_guard<std::mutex> lk(mtx_state_);
+    lidar_valid_   = false;
+    st_min_r_      = std::numeric_limits<float>::infinity();
+    st_min_r_ang_  = 0.0f;
+    st_span_       = 0.0f;
+    st_count_      = 0;
+  }
+
   void publishEmpty() {
-    std_msgs::msg::Float32MultiArray out;
-    out.data = {0.0f, std::numeric_limits<float>::infinity(), 0.0f, 0.0f, 0.0f, 0.0f};
-    pub_obj_->publish(out);
+    resetLidarState();  // ✅ 상태만 초기화
+
     if (enable_gui_) {
       std::lock_guard<std::mutex> lk(mtx_);
       dbg_exists_ = 0.0f;
@@ -200,6 +203,45 @@ private:
       last_rx_ok_ = false;
     }
   }
+
+  void onPublishTick() {
+    // 스냅샷 취득
+    bool  lidar_ok;
+    float minr, ang, spn;
+    int   cnt;
+    float box_area;
+
+    {
+      std::lock_guard<std::mutex> lk(mtx_state_);
+      lidar_ok = lidar_valid_;
+      minr     = st_min_r_;
+      ang      = st_min_r_ang_;
+      spn      = st_span_;
+      cnt      = st_count_;
+    }
+    {
+      std::lock_guard<std::mutex> lk(mtx_box_);
+      box_area = last_box_area_pix_;  // 박스 없으면 0
+    }
+
+    const float exists = (lidar_ok && (minr <= detect_threshold_m_)) ? 1.0f : 0.0f;
+
+    std_msgs::msg::Float32MultiArray out;
+    // [exists, min_dist, angle, span, cluster_size, box_size]
+    out.data = { exists, minr, ang, spn, static_cast<float>(cnt), box_area };
+    pub_obj_->publish(out);
+
+    // 디버그 패널 숫자 최신화 (선택)
+    if (enable_gui_) {
+      std::lock_guard<std::mutex> lk(mtx_);
+      dbg_exists_ = exists;
+      dbg_dist_   = minr;
+      dbg_csize_  = static_cast<float>(cnt);
+      last_rx_ok_ = lidar_ok;
+      last_rx_time_ = now();
+    }
+  }
+
 
   void onImage(const sensor_msgs::msg::Image::SharedPtr msg) {
     cv::Mat img;
@@ -348,6 +390,7 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_img_;
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pub_obj_;
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::TimerBase::SharedPtr pub_timer_;
 
   // Debug 상태
   std::mutex mtx_;
@@ -369,6 +412,14 @@ private:
   // --- YOLO 박스 면적 공유 변수 ---
   std::mutex mtx_box_;
   float last_box_area_pix_ = 0.0f;   // 박스 없으면 0
+
+  // 퍼블리시용 공유 상태
+  std::mutex mtx_state_;
+  bool  lidar_valid_ = false;
+  float st_min_r_     = std::numeric_limits<float>::infinity();
+  float st_min_r_ang_ = 0.0f;
+  float st_span_      = 0.0f;
+  int   st_count_     = 0;
 };
 
 int main(int argc, char** argv) {

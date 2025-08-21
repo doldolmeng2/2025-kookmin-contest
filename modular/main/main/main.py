@@ -74,6 +74,7 @@ class MainNode(Node):
         self.obj_span    = 0.0
         self.obj_cluster = 1e9   # 아주 크게: '안전' 쪽으로 평가되게
         self.object_dist = 1e9   # 아주 멀다로 초기화
+        self.box_size    = 0.0
 
     def joy_callback(self, msg: Joy):
         """
@@ -115,7 +116,7 @@ class MainNode(Node):
         self.obj_angle    = float(data[2])
         self.obj_span     = float(data[3])
         self.obj_cluster  = float(data[4])
-        self.box_size     = flost(data[5])
+        self.box_size     = float(data[5])
 
     def traffic_callback(self, msg):
         self.traffic_green = msg.data # True if traffic light is green
@@ -176,8 +177,15 @@ class MainNode(Node):
                 # YOLO 박스 넓이 조건
                 cond_box = self.box_size >= 10000.0
                 if cond_box:
-                    self.mode = OBSTACLE_APPROACH
-                    self.get_logger().info("장애물 접근 모드로 변경 (box_size 조건)")
+                    self.cond_count += 1
+                    if self.cond_count >= self.cond_threshold:
+                        self.mode = OBSTACLE_APPROACH
+                        self.get_logger().info(
+                            f"장애물 접근 모드로 변경 (box_size={self.box_size:.1f}, frames={self.cond_count})"
+                        )
+                        self.cond_count = 0  # 조건 달성 후 초기화
+                else:
+                    self.cond_count = 0  # 조건 끊기면 다시 0
 
             elif self.mode == OBSTACLE_APPROACH: # object_info is detected
                 if self.object_dist < 1.3:
