@@ -27,11 +27,11 @@ class ObjectDetectionNode : public rclcpp::Node {
 public:
   ObjectDetectionNode() : Node("object_node") {
     // 파라미터
-    front_fov_deg_       = this->declare_parameter<double>("front_fov_deg", 10.0);
+    front_fov_deg_       = this->declare_parameter<double>("front_fov_deg", 7.0);
     range_min_m_         = this->declare_parameter<double>("range_min_m",   0.05);
-    range_max_m_         = this->declare_parameter<double>("range_max_m",   5.0);
+    range_max_m_         = this->declare_parameter<double>("range_max_m",   2.0);
     cluster_epsilon_m_   = this->declare_parameter<double>("cluster_epsilon_m", 0.20);
-    min_cluster_points_  = this->declare_parameter<int>("min_cluster_points", 3);
+    min_cluster_points_  = this->declare_parameter<int>("min_cluster_points", 5);
     detect_threshold_m_  = this->declare_parameter<double>("detect_threshold_m", 6.0);
     enable_gui_          = this->declare_parameter<bool>("enable_gui", true);
 

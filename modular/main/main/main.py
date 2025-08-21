@@ -4,6 +4,7 @@ from std_msgs.msg import Int32MultiArray, Int16, Bool
 from std_msgs.msg import Float32MultiArray
 from main.control import Controller
 import cv2
+import time
 import numpy as np
 from sensor_msgs.msg import Joy
 
@@ -22,6 +23,10 @@ class MainNode(Node):
         # Parameter
         self.declare_parameter('mode', TRAFFIC_WAIT)
         self.mode = self.get_parameter('mode').value
+        self.last_change_time = 0.0 # 타이머
+        self.last_log_time = 0.0 # 로그타이머
+        self.cond_count = 0
+        self.cond_threshold = 5  # 몇 프레임 이상 유지할지 (예: 5프레임)
 
         # Controller
         self.controller = Controller(self)
@@ -154,24 +159,30 @@ class MainNode(Node):
 #            elif self.mode == LANE_DRIVE and self.object_dist != 0: # object_dist need reset
 #                self.mode = OBSTACLE_APPROACH
             elif self.mode == LANE_DRIVE:
-                cond_exists  = self.obj_exists >= 0.5
+                cond_exists  = self.obj_exists >= 0.9
                 cond_dist    = self.object_dist < 1.5
-                cond_cluster = self.obj_cluster < 25.0
+                cond_cluster = self.obj_cluster < 15.0
+
                 if cond_exists and cond_dist and cond_cluster:
-                    self.mode = OBSTACLE_APPROACH
-                    self.get_logger().info("장애물 접근 모드로 변경")
+                    self.cond_count += 1
+                    if self.cond_count >= self.cond_threshold:
+                        self.mode = OBSTACLE_APPROACH
+                        self.get_logger().info("장애물 접근 모드로 변경")
+                        self.cond_count = 0  # 조건 달성 후 초기화
+                else:
+                    self.cond_count = 0  # 조건 끊기면 다시 0
 
             elif self.mode == OBSTACLE_APPROACH: # object_info is detected
-                if self.object_dist < 0.5:
+                if self.object_dist < 1.3:
                     if self.lane == 0:  # same side 
                         self.lane = 1 # change lane
                     else:
                         self.lane = 0
                     self.mode = CHANGE_LANE
                     self.get_logger().info("차선 변경 모드로 변경")
-                elif self.object_dist > 1.5:   # different side
+                elif self.object_dist > 1.3 or self.obj_exists == 0:   # different side
                     self.mode = LANE_DRIVE
-                    self.get_logger().info("차선 주행 모드로 변경")
+                    self.get_logger().info("장애물 차량이 아니였나봄")
 
             elif self.mode == CHANGE_LANE and self.is_change_end():
                 self.mode = LANE_DRIVE
@@ -254,9 +265,21 @@ class MainNode(Node):
         cv2.waitKey(1)
 
 
+    
     def is_change_end(self):
-        return True if self.object_dist > 2.0 else False
+            now = time.time()
 
+            # 쿨다운 중이면 False
+            if now - self.last_change_time < 10:
+                if now - self.last_log_time > 1.0:  # 1초에 한 번만 로그
+                    remaining = 5 - (now - self.last_change_time)
+                    self.get_logger().info(f"타이머 작동중... 남은 시간: {remaining:.1f}초")
+                    self.last_log_time = now
+                return False
+            else: # 조건 충족하면 True + 쿨다운 시작
+                self.last_change_time = now
+                self.get_logger().info("타이머 작동 끝")
+                return True
 
 def main(args=None):
     rclpy.init(args=args)

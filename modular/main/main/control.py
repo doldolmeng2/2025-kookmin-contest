@@ -102,7 +102,7 @@ class Controller:
             # 신호 대기 시 정지
             self.angle, self.speed = 0.0, 0.0
 
-        elif mode in (RUBBERCONE_DRIVE, LANE_DRIVE, CHANGE_LANE):
+        elif mode in (RUBBERCONE_DRIVE, LANE_DRIVE):
             # PD 제어로 조향 계산 후 속도 제어
             self.angle = self._compute_steering_pd(mode, offset)
             params     = self.speed_params.get(mode)
@@ -116,7 +116,14 @@ class Controller:
             # 장애물 접근: 차선 주행 조향 + PI 제어 속도
             self.angle = self._compute_steering_pd(LANE_DRIVE, offset)
             # self.speed = self._compute_obstacle_speed(obstacle_dist) if obstacle_dist > 0 else 0.0
-            self.speed = 1
+            self.speed = 5
+
+        elif mode == CHANGE_LANE:
+            # 장애물 접근: 차선 주행 조향 + PI 제어 속도
+            self.angle = self._compute_steering_pd(mode, offset)
+            params     = self.speed_params.get(mode)
+            raw_speed = self._compute_speed_from_angle(self.angle, params) if params else 0.5
+            self.speed = raw_speed * 0.5   # 50%로 줄이기
 
         else:
             # 정의되지 않은 모드에서는 안전 정지
