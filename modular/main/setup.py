@@ -12,6 +12,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', [
        'launch/module_drive.py',     # 지금 만든 파일
+       'launch/module_drive_bag_test.py',
     ]),
     ],
     install_requires=['setuptools'],

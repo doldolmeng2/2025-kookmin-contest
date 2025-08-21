@@ -43,5 +43,5 @@
   "horizontal_noise_extra_pad": 30,
   "horizontal_band_corridor_ratio_thresh": 0.1,
   
-  "debug_view":false
+  "debug_view": true
 }

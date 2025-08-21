@@ -44,8 +44,7 @@ class MainNode(Node):
         self.prev_b = 0
 
         # test mode 파라미터
-        self.test_mode = True
-
+        self.test_mode = False # (오상영 디버깅) True -> False
         # Variables
         self.lane = 0
         self.rubbercone_offset = 0
@@ -57,11 +56,19 @@ class MainNode(Node):
         self.rubbercone_end_time = None
         self.into_lane_timer = 1.7 # 라바콘 끝나고 하드코딩 시간초
         self.lane_drive_started = False
+        
 
         # 20 ms timer to run control cycle at ~50 Hz
         self.create_timer(0.02, self.control_cycle)
 
         self.lane_drive_start_time = None
+
+        # Variables (기존 아래 줄들 바로 근처에 추가)
+        self.obj_exists  = 0.0
+        self.obj_angle   = 0.0
+        self.obj_span    = 0.0
+        self.obj_cluster = 1e9   # 아주 크게: '안전' 쪽으로 평가되게
+        self.object_dist = 1e9   # 아주 멀다로 초기화
 
     def joy_callback(self, msg: Joy):
         """
@@ -120,12 +127,12 @@ class MainNode(Node):
         #################### 임시 코드 (라바콘) ###################
         if self.mode == TRAFFIC_WAIT and self.traffic_green:
             self.mode = RUBBERCONE_DRIVE
-            print("초록불 감지 -> 라바콘 모드로 변경")
+            self.get_logger().info("초록불 감지 -> 라바콘 모드로 변경")
 
         elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1:
             self.mode = RUBBERCONE_END
             self.rubbercone_end_time = now
-            print("라바콘 종료 차선 진입")
+            self.get_logger().info("라바콘 종료 차선 진입")
 
         elif self.mode == RUBBERCONE_END and elapsed > self.into_lane_timer:
             self.mode = TRAFFIC_WAIT
@@ -152,7 +159,7 @@ class MainNode(Node):
                 cond_cluster = self.obj_cluster < 25.0
                 if cond_exists and cond_dist and cond_cluster:
                     self.mode = OBSTACLE_APPROACH
-                    print("장애물 접근")
+                    self.get_logger().info("장애물 접근 모드로 변경")
 
             elif self.mode == OBSTACLE_APPROACH: # object_info is detected
                 if self.object_dist < 0.5:
@@ -161,11 +168,14 @@ class MainNode(Node):
                     else:
                         self.lane = 0
                     self.mode = CHANGE_LANE
-                else if self.object_dist > 1.5:   # different side
+                    self.get_logger().info("차선 변경 모드로 변경")
+                elif self.object_dist > 1.5:   # different side
                     self.mode = LANE_DRIVE
+                    self.get_logger().info("차선 주행 모드로 변경")
 
             elif self.mode == CHANGE_LANE and self.is_change_end():
                 self.mode = LANE_DRIVE
+                self.get_logger().info("차선 주행 모드로 변경")
             
         # 오프셋 선택
         offset = self.rubbercone_offset if self.mode == RUBBERCONE_DRIVE else self.lane_offset
