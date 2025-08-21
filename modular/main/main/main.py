@@ -35,7 +35,7 @@ class MainNode(Node):
         self.create_subscription(Int16, 'lane_offset',       self.lane_offset_callback, 10)
         self.create_subscription(Float32MultiArray, 'object_info',        self.object_info_callback, 10)
         self.create_subscription(Bool,    'traffic_detection',self.traffic_callback, 10)
-        self.create_subscription(Int32MultiArray, 'object_distance', self.object_distance_callback, 10)
+        # self.create_subscription(Int32MultiArray, 'object_distance', self.object_distance_callback, 10)
 
         # Xbox 컨트롤러 조이스틱 토픽 구독
         self.create_subscription(Joy, 'joy', self.joy_callback, 10)
@@ -107,8 +107,8 @@ class MainNode(Node):
     def traffic_callback(self, msg):
         self.traffic_green = msg.data # True if traffic light is green
 
-    def object_distance_callback(self, msg):
-        self.object_dists = msg.data # distance to the nearest object
+    # def object_distance_callback(self, msg):
+    #     self.object_dists = msg.data # distance to the nearest object
 
     def control_cycle(self):
         now = self.get_clock().now()
@@ -155,13 +155,13 @@ class MainNode(Node):
                     print("장애물 접근")
 
             elif self.mode == OBSTACLE_APPROACH: # object_info is detected
-                if self. object_dist < 0.5:
-                    if self.lane == 1:  # same side 
-                        self.lane = 2 # change lane
-                    else :
-                        self.lane = 1
+                if self.object_dist < 0.5:
+                    if self.lane == 0:  # same side 
+                        self.lane = 1 # change lane
+                    else:
+                        self.lane = 0
                     self.mode = CHANGE_LANE
-                else:                               # different side
+                else if self.object_dist > 1.5:   # different side
                     self.mode = LANE_DRIVE
 
             elif self.mode == CHANGE_LANE and self.is_change_end():
