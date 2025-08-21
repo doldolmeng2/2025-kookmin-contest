@@ -115,6 +115,7 @@ class MainNode(Node):
         self.obj_angle    = float(data[2])
         self.obj_span     = float(data[3])
         self.obj_cluster  = float(data[4])
+        self.box_size     = flost(data[5])
 
     def traffic_callback(self, msg):
         self.traffic_green = msg.data # True if traffic light is green
@@ -158,19 +159,25 @@ class MainNode(Node):
 
 #            elif self.mode == LANE_DRIVE and self.object_dist != 0: # object_dist need reset
 #                self.mode = OBSTACLE_APPROACH
-            elif self.mode == LANE_DRIVE:
-                cond_exists  = self.obj_exists >= 0.9
-                cond_dist    = self.object_dist < 1.5
-                cond_cluster = self.obj_cluster < 15.0
+            # elif self.mode == LANE_DRIVE:
+            #     cond_exists  = self.obj_exists >= 0.9
+            #     cond_dist    = self.object_dist < 1.5
+            #     cond_cluster = self.obj_cluster < 15.0
 
-                if cond_exists and cond_dist and cond_cluster:
-                    self.cond_count += 1
-                    if self.cond_count >= self.cond_threshold:
-                        self.mode = OBSTACLE_APPROACH
-                        self.get_logger().info("장애물 접근 모드로 변경")
-                        self.cond_count = 0  # 조건 달성 후 초기화
-                else:
-                    self.cond_count = 0  # 조건 끊기면 다시 0
+            #     if cond_exists and cond_dist and cond_cluster:
+            #         self.cond_count += 1
+            #         if self.cond_count >= self.cond_threshold:
+            #             self.mode = OBSTACLE_APPROACH
+            #             self.get_logger().info("장애물 접근 모드로 변경")
+            #             self.cond_count = 0  # 조건 달성 후 초기화
+            #     else:
+            #         self.cond_count = 0  # 조건 끊기면 다시 0
+            elif self.mode == LANE_DRIVE:
+                # YOLO 박스 넓이 조건
+                cond_box = self.box_size >= 10000.0
+                if cond_box:
+                    self.mode = OBSTACLE_APPROACH
+                    self.get_logger().info("장애물 접근 모드로 변경 (box_size 조건)")
 
             elif self.mode == OBSTACLE_APPROACH: # object_info is detected
                 if self.object_dist < 1.3:

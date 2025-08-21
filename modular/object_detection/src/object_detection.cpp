@@ -13,6 +13,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <opencv2/opencv.hpp>
+#include <opencv2/dnn.hpp>          // <-- 추가
 #include <cv_bridge/cv_bridge.h>
 #include <mutex>
 #include <limits>
@@ -44,6 +45,21 @@ public:
         std::bind(&ObjectDetectionNode::onImage, this, _1));
 
     pub_obj_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/object_info", 10);
+    
+    // --- YOLO 초기화 (경로/옵션은 네 환경에 맞게) ---
+    try {
+      net_ = cv::dnn::readNet("/home/helloosy/250805/2025-kookmin-contest/modular/object_detection/best.onnx");
+      net_.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+      net_.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
+      yolo_ok_ = true;
+    } catch (const cv::Exception& e) {
+      RCLCPP_ERROR(this->get_logger(), "YOLO load failed: %s", e.what());
+      yolo_ok_ = false;
+    }
+    conf_threshold_ = 0.55f;
+    nms_threshold_  = 0.40f;
+    min_w_pix_      = 50;
+    min_h_pix_      = 30;
 
     if (enable_gui_) {
       cv::namedWindow("OBJECT DEBUG", cv::WINDOW_AUTOSIZE);
@@ -51,6 +67,7 @@ public:
       timer_ = this->create_wall_timer(
         std::chrono::milliseconds(33), std::bind(&ObjectDetectionNode::onTimer, this));
     }
+    
   }
 
   ~ObjectDetectionNode() override {
@@ -143,9 +160,22 @@ private:
     const double span = std::fabs(ang_end - ang_start);
     const float exists = (best.min_r <= detect_threshold_m_) ? 1.0f : 0.0f;
 
+    // <-- 여기서 YOLO 면적 읽어오기
+    float box_area;
+    {
+      std::lock_guard<std::mutex> lk(mtx_box_);
+      box_area = last_box_area_pix_; // 박스 없으면 0
+    }
+
     std_msgs::msg::Float32MultiArray out;
-    out.data = {exists, best.min_r, static_cast<float>(best.min_r_ang),
-                static_cast<float>(span), static_cast<float>(best.count)};
+    out.data = {
+      exists,
+      best.min_r,
+      static_cast<float>(best.min_r_ang),
+      static_cast<float>(span),
+      static_cast<float>(best.count),
+      box_area                       // <-- 추가된 6번째 값
+    };
     pub_obj_->publish(out);
 
     if (enable_gui_) {
@@ -160,7 +190,7 @@ private:
 
   void publishEmpty() {
     std_msgs::msg::Float32MultiArray out;
-    out.data = {0.0f, std::numeric_limits<float>::infinity(), 0.0f, 0.0f, 0.0f};
+    out.data = {0.0f, std::numeric_limits<float>::infinity(), 0.0f, 0.0f, 0.0f, 0.0f};
     pub_obj_->publish(out);
     if (enable_gui_) {
       std::lock_guard<std::mutex> lk(mtx_);
@@ -172,13 +202,104 @@ private:
   }
 
   void onImage(const sensor_msgs::msg::Image::SharedPtr msg) {
+    cv::Mat img;
     if (!enable_gui_) return;
     try {
-      cv::Mat img = cv_bridge::toCvCopy(msg, "bgr8")->image;
-      std::lock_guard<std::mutex> lk(mtx_img_);
-      last_img_ = img.clone();
+      img = cv_bridge::toCvCopy(msg, "bgr8")->image;
     } catch (cv_bridge::Exception& e) {
       RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+    }
+
+    if (img.empty()) return;
+
+    if (enable_gui_) {
+      std::lock_guard<std::mutex> lk(mtx_img_);
+      last_img_ = img.clone();
+    }
+
+    float box_area = 0.0f; // 기본 0 (박스 없음)
+
+    if (yolo_ok_) {
+      const int W = img.cols, H = img.rows;
+
+      cv::Mat resized;
+      cv::resize(img, resized, cv::Size(640, 640));
+      cv::Mat blob;
+      cv::dnn::blobFromImage(resized, blob, 1.0/255.0, cv::Size(), cv::Scalar(), true, false);
+      net_.setInput(blob);
+
+      cv::Mat out;
+      try {
+        out = net_.forward();
+        // (8400,5) 형태로 변환: (cx,cy,w,h,conf) 가정
+        out = out.reshape(1, {5, 8400});
+        out = out.t();
+      } catch (const cv::Exception& e) {
+        RCLCPP_ERROR(this->get_logger(), "YOLO forward error: %s", e.what());
+        out.release();
+      }
+
+      if (!out.empty()) {
+        std::vector<cv::Rect> boxes;
+        std::vector<float> confs;
+        boxes.reserve(64); confs.reserve(64);
+
+        for (int i = 0; i < out.rows; ++i) {
+          float* d = out.ptr<float>(i);
+          float cx = d[0], cy = d[1], w = d[2], h = d[3], conf = d[4];
+          if (conf < conf_threshold_) continue;
+
+          // 640 → 원본 스케일 복원
+          float x = (cx - w/2.f) * (static_cast<float>(W) / 640.f);
+          float y = (cy - h/2.f) * (static_cast<float>(H) / 640.f);
+          float ww = w * (static_cast<float>(W) / 640.f);
+          float hh = h * (static_cast<float>(H) / 640.f);
+
+          int left = static_cast<int>(std::round(x));
+          int top  = static_cast<int>(std::round(y));
+          int wi   = static_cast<int>(std::round(ww));
+          int hi   = static_cast<int>(std::round(hh));
+          if (wi < min_w_pix_ || hi < min_h_pix_) continue;
+
+          // 클리핑
+          left = std::max(0, std::min(left, W-1));
+          top  = std::max(0, std::min(top , H-1));
+          wi   = std::max(1, std::min(wi, W - left));
+          hi   = std::max(1, std::min(hi, H - top));
+
+          boxes.emplace_back(left, top, wi, hi);
+          confs.push_back(conf);
+        }
+
+        if (!boxes.empty()) {
+          std::vector<int> keep;
+          cv::dnn::NMSBoxes(boxes, confs, conf_threshold_, nms_threshold_, keep);
+          if (!keep.empty()) {
+            int best = keep[0];
+            for (int idx : keep) if (confs[idx] > confs[best]) best = idx;
+            const cv::Rect& b = boxes[best];
+            box_area = static_cast<float>(b.width) * static_cast<float>(b.height); // 픽셀 넓이
+
+            // (옵션) GUI에 박스 그리기
+            if (enable_gui_) {
+              cv::Mat overlay;
+              {
+                std::lock_guard<std::mutex> lk(mtx_img_);
+                if (!last_img_.empty()) overlay = last_img_;
+              }
+              if (!overlay.empty()) {
+                cv::rectangle(overlay, b, cv::Scalar(0,255,0), 2);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 공유 변수 갱신
+    {
+      std::lock_guard<std::mutex> lk(mtx_box_);
+      last_box_area_pix_ = box_area;   // 박스 없으면 0
     }
   }
 
@@ -238,6 +359,16 @@ private:
 
   std::mutex mtx_img_;
   cv::Mat last_img_;
+
+  // --- YOLO 상태 ---
+  cv::dnn::Net net_;
+  bool  yolo_ok_ = false;
+  float conf_threshold_, nms_threshold_;
+  int   min_w_pix_, min_h_pix_;
+
+  // --- YOLO 박스 면적 공유 변수 ---
+  std::mutex mtx_box_;
+  float last_box_area_pix_ = 0.0f;   // 박스 없으면 0
 };
 
 int main(int argc, char** argv) {
