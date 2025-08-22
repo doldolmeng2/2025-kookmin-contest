@@ -22,7 +22,6 @@
   "roi_top_y_coefficient": 0.7,
   "roi_bottom_y_coefficient": 1.0,
 
-
   "ref_hist_sigma_ratio": 0.1,
   "ref_hist_min_weight": 0.05,
   "sliding_window_num_windows": 20,

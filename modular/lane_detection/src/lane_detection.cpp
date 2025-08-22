@@ -63,7 +63,10 @@ public:
         // 4) 계산된 중앙선 파라미터 발행: /lane_fit (Float32MultiArray, [m, b])
         fit_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/lane_fit", 10);
 
-        // 5) ROI 사다리꼴을 BEV 직사각형으로 변환하기 위한 호모그래피 행렬 계산
+        // 5) (차선변경모드인지, 차선변경성공했는지) 를 담아서 발행한다.
+        lane_change_state_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("/lane_change_state", 10);
+
+        // 6) ROI 사다리꼴을 BEV 직사각형으로 변환하기 위한 호모그래피 행렬 계산
         buildHomography();
     }
 
@@ -634,6 +637,48 @@ public:
         return true;
     }
 
+    // 변경 성공/진행 상태 업데이트 + 퍼블리시
+    void updateLaneChangeState(bool valid, const LineFit& center_fit, float offset) {
+        // 퍼블리시용 changing 플래그
+        int changing_flag = changing_ ? 1 : 0;
+
+        // 모드 5에서만(=changing_=true) 검증 수행
+        if (check_active_ && current_mode_ == 5) {
+            // 곡선 보정 허용치
+            float m = center_fit.m;
+            float slope_term = std::min(1.0f, std::abs(m));
+            float O_tol = O_BASE_PX_ + G_SLOPE_PX_ * slope_term;
+
+            // Δoffset
+            float d_off = 0.f;
+            if (has_last_offset_) d_off = offset - last_offset_;
+            last_offset_ = offset;
+            has_last_offset_ = true;
+
+            // 안정 프레임 판정
+            bool frame_ok = valid &&
+                            (std::abs(offset) <= O_tol) &&
+                            (std::abs(d_off) <= D_TOL_PX_);
+
+            stable_streak_ = frame_ok ? (stable_streak_ + 1) : 0;
+
+            // 성공: 아직 래치 안됐고, 연속 프레임 충족 시 1프레임 펄스
+            if (!success_latched_ && stable_streak_ >= STABLE_NEED_) {
+                success_pulse_ = SUCCESS_PULSE_FRAMES_;
+                success_latched_ = true;   // 모드 5 유지 중엔 재발행 방지
+                check_active_ = false;     // 더 이상 카운트 불필요(원하면 유지해도 무방)
+            }
+        }
+
+        // 성공 펄스(1프레임) 생성
+        int success_flag = (success_pulse_ > 0) ? 1 : 0;
+
+        std_msgs::msg::Int32MultiArray st;
+        st.data = { changing_flag, success_flag };  // [변경중, 성공]
+        lane_change_state_pub_->publish(st);
+
+        if (success_pulse_ > 0) success_pulse_--;   // 펄스 다운카운트
+    }
 
 private:
     // ===== ROS 통신 객체 =====
@@ -641,6 +686,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr mode_sub_;
     rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr offset_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr fit_pub_;
+    rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr lane_change_state_pub_;
 
     // ===== 파라미터 (Config에서 로드) =====
     Config config_; // JSON에서 불러온 설정값
@@ -666,6 +712,25 @@ private:
     int frame_count_ = 0; // 프레임 카운터
     int debug_stride_ = 1; // 디버그 출력 주기 (1이면 매 프레임)
     bool debug_view_ = config_.debug_view; // 시각화 여부 (Config에서 불러옴)
+
+
+    // ===== 차선 변경 상태 추적 =====
+    int  current_mode_ = 0;
+    int  current_lane_ = 0;
+    bool changing_ = false;          // 변경중인지여부 (mode==5일 때 1)
+    bool check_active_ = false;      // 5→3 전환 후 "성공 검증" 진행 중
+    int  stable_streak_ = 0;         // 안정 프레임 연속 개수
+    bool has_last_offset_ = false;
+    float last_offset_ = 0.f;
+    int  success_pulse_ = 0;         // 성공 펄스(프레임 수), 0이면 off
+    bool success_latched_ = false;  // 모드 5 동안 성공 1회만 펄스 내보내기
+
+    // ===== 차선 변경 상태 추적 임계값 (필요시 Config로 빼도 됨) =====
+    const float O_BASE_PX_   = 12.f; // 직선 기준 허용 오프셋(px)
+    const float G_SLOPE_PX_  = 18.f; // 커브(기울기) 보정 허용치(px)
+    const float D_TOL_PX_    = 10.f; // 프레임 간 offset 변화 허용(px)
+    const int   STABLE_NEED_ = 8;    // 안정 프레임 연속 필요 개수
+    const int   SUCCESS_PULSE_FRAMES_ = 1; // 성공 시 1프레임만 1로 펄스
 
     // ===== 콜백: 카메라 영상 처리 파이프라인 =====
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
@@ -762,15 +827,57 @@ private:
             }
         }
 
-        // 결과 발행 + 디버그 출력
+        // offset 계산 발행 + 디버그 출력
         publishAndDebug(frame, offset, center_fit, show_dbg, /*dbg_from_fit=*/(dbg.empty()? nullptr : &dbg));
+    
+        // === 차선 변경 상태 업데이트/퍼블리시 ===
+        updateLaneChangeState(/*valid=*/valid, /*center_fit=*/center_fit, /*offset=*/offset);
     }
 
     // ===== 콜백: 모드/레인 변경 =====
     void modeCallback(const std_msgs::msg::Int32MultiArray::SharedPtr msg) {
-        // 입력 형식: [mode, lane] / lane=0→1차선, lane=1→2차선
-        if (msg->data.size() >= 2 && msg->data[0] == 5){ // 차선 변경 모드 시 레인 갱신
-            lane_mode_ = (msg->data[1] == 0) ? LaneMode::LANE_ONE : LaneMode::LANE_TWO;
+        // 기대 형식: [mode, lane]  (lane=0→1차선, lane=1→2차선)
+        if (msg->data.size() < 2) return;
+
+        const int new_mode = msg->data[0];
+        const int new_lane = msg->data[1];
+
+        const int prev_mode = current_mode_;
+        current_mode_ = new_mode;
+        current_lane_ = new_lane;
+
+        // ===================== lane_mode_ 갱신 규칙 =====================
+        // 1) 변경 모드(5)일 때는 그대로 갱신
+        // 2) "모드 3이 아니었다가 → 3이 된 순간"에도 갱신
+        if (new_mode == 5 || (prev_mode != 3 && new_mode == 3)) {
+            lane_mode_ = (new_lane == 0) ? LaneMode::LANE_ONE : LaneMode::LANE_TWO;
+        }
+        // ============================================================
+
+        // 변경중 플래그
+        changing_ = (current_mode_ == 5);
+
+        // 공통 리셋 람다
+        auto reset_check_state = [&](){
+            check_active_ = false;
+            stable_streak_ = 0;
+            has_last_offset_ = false;
+            success_pulse_ = 0;
+            success_latched_ = false;
+        };
+
+        // 1) 5로 "진입"할 때만 검증 시작
+        if (prev_mode != 5 && current_mode_ == 5) {
+            check_active_ = true;      // 모드 5에서 계속 검증
+            stable_streak_ = 0;
+            has_last_offset_ = false;
+            success_pulse_ = 0;
+            success_latched_ = false;  // 새 변경 시도 → 래치 해제
+        }
+
+        // 2) 5에서 벗어나면(외부가 3으로 바꿔줄 때 등) 상태 리셋
+        if (prev_mode == 5 && current_mode_ != 5) {
+            reset_check_state();
         }
     }
 };
@@ -781,7 +888,7 @@ int main(int argc, char** argv) {
 
     // JSON 파라미터 파일 로드 (경로 환경에 맞게 수정)
     Config config = load_config(
-        "/home/xytron/xycar_ws/src/orda/modular/lane_detection/lane_detection_parameter.json"
+        "/home/osy/xycar_ws/src/orda/2025-kookmin-contest/modular/lane_detection/lane_detection_parameter.json"
     );
 
     // 노드 생성 및 실행
