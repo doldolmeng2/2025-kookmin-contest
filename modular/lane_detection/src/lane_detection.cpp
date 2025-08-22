@@ -726,9 +726,9 @@ private:
     bool success_latched_ = false;  // 모드 5 동안 성공 1회만 펄스 내보내기
 
     // ===== 차선 변경 상태 추적 임계값 (필요시 Config로 빼도 됨) =====
-    const float O_BASE_PX_   = 12.f; // 직선 기준 허용 오프셋(px)
-    const float G_SLOPE_PX_  = 18.f; // 커브(기울기) 보정 허용치(px)
-    const float D_TOL_PX_    = 10.f; // 프레임 간 offset 변화 허용(px)
+    const float O_BASE_PX_   = config_.lane_change_o_base_px; // 직선 기준 허용 오프셋(px)
+    const float G_SLOPE_PX_  = config_.lane_change_g_slope_px; // 커브(기울기) 보정 허용치(px)
+    const float D_TOL_PX_    = config_.lane_change_d_tol_px; // 프레임 간 offset 변화 허용(px)
     const int   STABLE_NEED_ = 8;    // 안정 프레임 연속 필요 개수
     const int   SUCCESS_PULSE_FRAMES_ = 1; // 성공 시 1프레임만 1로 펄스
 
