@@ -123,7 +123,7 @@ class Controller:
             self.angle = self._compute_steering_pd(mode, offset)
             params     = self.speed_params.get(mode)
             raw_speed = self._compute_speed_from_angle(self.angle, params) if params else 0.5
-            self.speed = raw_speed * 0.5   # 50%로 줄이기
+            self.speed = raw_speed * 0.6   # 60%로 줄이기
 
         else:
             # 정의되지 않은 모드에서는 안전 정지
