@@ -26,7 +26,7 @@ class MainNode(Node):
         self.last_change_time = 0.0 # 타이머
         self.last_log_time = 0.0 # 로그타이머
         self.cond_count = 0
-        self.cond_threshold = 5  # 몇 프레임 이상 유지할지 (예: 5프레임)
+        self.cond_threshold = 2  # 몇 프레임 이상 유지할지 (예: 5프레임)
 
         # Controller
         self.controller = Controller(self)
@@ -150,6 +150,9 @@ class MainNode(Node):
                 # YOLO 박스 넓이 조건
                 cond_box = self.box_size >= 700.0
                 if cond_box:
+                    self.get_logger().info(
+                            f"(box_size={self.box_size:.1f}, frames={self.cond_count})"
+                        )
                     self.cond_count += 1
                     if self.cond_count >= self.cond_threshold:
                         self.mode = OBSTACLE_APPROACH
