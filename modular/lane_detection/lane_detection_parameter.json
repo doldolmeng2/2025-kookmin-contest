@@ -26,7 +26,7 @@
   "ref_hist_sigma_ratio": 0.1,
   "ref_hist_min_weight": 0.05,
   "sliding_window_num_windows": 20,
-  "sliding_window_margin": 50,
+  "sliding_window_margin": 100,
   "sliding_window_minpix": 5,
   "corridor_width": 700,
 
