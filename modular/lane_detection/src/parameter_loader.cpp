@@ -34,6 +34,8 @@ Config load_config(const std::string& path) {
     config.roi_bottom_width_coefficient = j["roi_bottom_width_coefficient"];
     config.roi_top_y_coefficient = j["roi_top_y_coefficient"];
     config.roi_bottom_y_coefficient = j["roi_bottom_y_coefficient"];
+    config.ref_hist_sigma_ratio = j["ref_hist_sigma_ratio"];
+    config.ref_hist_min_weight = j["ref_hist_min_weight"];
     config.sliding_window_num_windows = j["sliding_window_num_windows"];
     config.sliding_window_margin = j["sliding_window_margin"];
     config.sliding_window_minpix = j["sliding_window_minpix"];

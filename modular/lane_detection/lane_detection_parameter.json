@@ -22,8 +22,11 @@
   "roi_top_y_coefficient": 0.7,
   "roi_bottom_y_coefficient": 1.0,
 
+
+  "ref_hist_sigma_ratio": 0.1,
+  "ref_hist_min_weight": 0.05,
   "sliding_window_num_windows": 20,
-  "sliding_window_margin": 100,
+  "sliding_window_margin": 50,
   "sliding_window_minpix": 5,
   "corridor_width": 700,
 
@@ -43,5 +46,5 @@
   "horizontal_noise_extra_pad": 30,
   "horizontal_band_corridor_ratio_thresh": 0.1,
   
-  "debug_view": false
+  "debug_view": true
 }

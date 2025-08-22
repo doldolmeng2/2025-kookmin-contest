@@ -26,6 +26,8 @@ struct Config {
     float roi_bottom_width_coefficient;
     float roi_top_y_coefficient;
     float roi_bottom_y_coefficient;
+    float ref_hist_sigma_ratio;
+    float ref_hist_min_weight;
     int sliding_window_num_windows;
     int sliding_window_margin;
     size_t sliding_window_minpix;

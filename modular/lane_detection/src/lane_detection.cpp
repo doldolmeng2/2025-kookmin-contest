@@ -293,19 +293,40 @@ public:
         cv::Mat colSum;
         cv::reduce(nz, colSum, 0, cv::REDUCE_SUM, CV_32S); // 열(세로) 합계 (1 x histW)
 
+        // (a) 기본 히스토그램(픽셀 개수)
         std::vector<int> hist(histW);
         for (int i = 0; i < histW; ++i) hist[i] = colSum.at<int>(0, i) / 255; // 실제 픽셀 개수로 변환
+        
+        // (b) ref_x_ 근처에 더 큰 가중치 부여
+        //    - 파라미터: 없으면 아래 기본값 사용
+        // sigma_ratio가 작을수록 ref 근처만 강하게 밀어줌(보수적 시작점).
+        // w_min을 0.3~0.7 사이로 조절하며 “멀리 있어도 완전 무시되지는 않게” 균형 잡아줘.
+        const float sigma_ratio   = (config_.ref_hist_sigma_ratio > 0.f) ? 
+                                    config_.ref_hist_sigma_ratio : 0.35f; // corridor 폭 대비 σ
+        const float w_min         = (config_.ref_hist_min_weight > 0.f && config_.ref_hist_min_weight < 1.f) ?
+                                    config_.ref_hist_min_weight : 0.50f;  // 최소 가중치 (0~1)
+        const float sigma_pixels  = std::max(1.f, sigma_ratio * static_cast<float>(std::max(1, x_max - x_min + 1)));
+        const float two_sigma2    = 2.f * sigma_pixels * sigma_pixels;
 
-        auto it = std::max_element(hist.begin(), hist.end()); // hist가 비어있으면, begin == end 상태가 돼서, max_element()는 그냥 first(즉, hist.end())를 그대로 반환함.
-        const int bestVal = (it != hist.end()) ? *it : 0; // 가장 많은 픽셀 수
-        int base_x = ref_x_;  // 기본 시작 x는 ref_x_
+        // (c) 가중 히스토그램 계산
+        std::vector<float> weighted_hist(histW);
+        for (int i = 0; i < histW; ++i) {
+            int x = x_min + i;
+            float d = static_cast<float>(std::abs(x - ref_x_));
+            float w = w_min + (1.f - w_min) * std::exp(-(d*d) / two_sigma2);
+            weighted_hist[i] = static_cast<float>(hist[i]) * w;
+        }
 
-        if (bestVal > 0) {
-            // 히스토그램에서 최대 열의 corridor 상대 인덱스를 절대 좌표로 변환
-            int base_x_rel = static_cast<int>(std::distance(hist.begin(), it));
+        // (d) 최댓값 찾기 (가중치 적용 후)
+        int base_x = ref_x_;
+        auto it_w = std::max_element(weighted_hist.begin(), weighted_hist.end());
+        const float bestValW = (it_w != weighted_hist.end()) ? *it_w : 0.f;
+
+        if (bestValW > 0.f) {
+            int base_x_rel = static_cast<int>(std::distance(weighted_hist.begin(), it_w));
             base_x = x_min + base_x_rel;
         } else {
-            // 히스토그램 신호가 없으면 이전 프레임 라인(bottom x) 사용 → 없으면 ref_x_
+            // 신호가 없으면 이전 프레임 or ref_x_ 사용(기존 로직 유지)
             if (has_prev_center_fit_) {
                 int x_prev_bottom = static_cast<int>(prev_center_fit_.m * (h - 1) + prev_center_fit_.b);
                 base_x = std::clamp(x_prev_bottom, x_min, x_max);
