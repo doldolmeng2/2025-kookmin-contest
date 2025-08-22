@@ -34,8 +34,8 @@ SPEED_PARAMS = {
 # 라바콘 종료 시 고정 파라미터
 # angle: 종료 직후 조향 각도, speed: 종료 직후 속도
 RUBBERCONE_END_PARAMS = {
-    'angle': 0.0,
-    'speed': 0.0,
+    'angle': -30.0,
+    'speed': 13.0,
 }
 
 # 장애물 접근 모드 파라미터

@@ -132,7 +132,7 @@ private:
 
     if (left_group.size() >= 2 && right_group.size() >= 2) {
       // 케이스 1: 양쪽 2개 이상
-      if (start < 100) {
+      if (start < 50) {
         start++;
       }
         cv::Point2f lm{ (left_group[0].x + left_group[1].x) * 0.5f,
@@ -160,9 +160,8 @@ private:
 
       } 
 
-      else if (start == 100) {
+      else if (start == 50) {
         has_mid = false;
-        RCLCPP_INFO(get_logger(), "has_mid false 다이자식들아");
 
       }
       //else if (left_group.empty() && right_group.size() >= 2  ) {
@@ -186,7 +185,6 @@ private:
     } 
     else  { 
       rubber_end_value_ = 1;  // 최종 종료
-      RCLCPP_INFO(get_logger(), "끝났졍");
     }
   } // <-- scanCallback 끝
 

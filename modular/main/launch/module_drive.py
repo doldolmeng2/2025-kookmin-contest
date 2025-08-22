@@ -12,7 +12,7 @@ def generate_launch_description():
     # 1) 런치 아규먼트 선언
     mode_arg = DeclareLaunchArgument(
         'mode',
-        default_value='3',
+        default_value='0',
         description='Main node mode parameter'
     )
     mode = LaunchConfiguration('mode')

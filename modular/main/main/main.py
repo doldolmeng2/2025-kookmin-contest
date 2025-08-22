@@ -49,7 +49,7 @@ class MainNode(Node):
         self.prev_b = 0
 
         # test mode 파라미터
-        self.test_mode = False # (오상영 디버깅) True -> False
+        self.test_mode = False # (디버깅) True -> False
         # Variables
         self.lane = 0
         self.rubbercone_offset = 0
@@ -131,51 +131,24 @@ class MainNode(Node):
         else:
             elapsed = 0.0
 
-        #################### 임시 코드 (라바콘) ###################
-        if self.mode == TRAFFIC_WAIT and self.traffic_green:
-            self.mode = RUBBERCONE_DRIVE
-            self.get_logger().info("초록불 감지 -> 라바콘 모드로 변경")
-
-        elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1:
-            self.mode = RUBBERCONE_END
-            self.rubbercone_end_time = now
-            self.get_logger().info("라바콘 종료 차선 진입")
-
-        elif self.mode == RUBBERCONE_END and elapsed > self.into_lane_timer:
-            self.mode = TRAFFIC_WAIT
-        ###################################################
-
-
         # 모드 전환
         if not self.test_mode: # test mode가 아닐 때만 모드 변경
             if self.mode == TRAFFIC_WAIT and self.traffic_green:
                 self.mode = RUBBERCONE_DRIVE
+                self.get_logger().info("초록불 감지 -> 라바콘 모드로 변경")
 
             elif self.mode == RUBBERCONE_DRIVE and self.end_flag == 1:
                 self.mode = RUBBERCONE_END
                 self.rubbercone_end_time = now
+                self.get_logger().info("라바콘 종료 차선 진입")
 
             elif self.mode == RUBBERCONE_END and elapsed > self.into_lane_timer:
                 self.mode = LANE_DRIVE
+                
 
-#            elif self.mode == LANE_DRIVE and self.object_dist != 0: # object_dist need reset
-#                self.mode = OBSTACLE_APPROACH
-            # elif self.mode == LANE_DRIVE:
-            #     cond_exists  = self.obj_exists >= 0.9
-            #     cond_dist    = self.object_dist < 1.5
-            #     cond_cluster = self.obj_cluster < 15.0
-
-            #     if cond_exists and cond_dist and cond_cluster:
-            #         self.cond_count += 1
-            #         if self.cond_count >= self.cond_threshold:
-            #             self.mode = OBSTACLE_APPROACH
-            #             self.get_logger().info("장애물 접근 모드로 변경")
-            #             self.cond_count = 0  # 조건 달성 후 초기화
-            #     else:
-            #         self.cond_count = 0  # 조건 끊기면 다시 0
             elif self.mode == LANE_DRIVE:
                 # YOLO 박스 넓이 조건
-                cond_box = self.box_size >= 10000.0
+                cond_box = self.box_size >= 700.0
                 if cond_box:
                     self.cond_count += 1
                     if self.cond_count >= self.cond_threshold:
@@ -188,16 +161,13 @@ class MainNode(Node):
                     self.cond_count = 0  # 조건 끊기면 다시 0
 
             elif self.mode == OBSTACLE_APPROACH: # object_info is detected
-                if self.object_dist < 1.3:
+                if self.object_dist < 2:
                     if self.lane == 0:  # same side 
                         self.lane = 1 # change lane
                     else:
                         self.lane = 0
                     self.mode = CHANGE_LANE
                     self.get_logger().info("차선 변경 모드로 변경")
-                elif self.object_dist > 1.3 or self.obj_exists == 0:   # different side
-                    self.mode = LANE_DRIVE
-                    self.get_logger().info("장애물 차량이 아니였나봄")
 
             elif self.mode == CHANGE_LANE and self.is_change_end():
                 self.mode = LANE_DRIVE
@@ -224,7 +194,7 @@ class MainNode(Node):
         if self.mode == LANE_DRIVE and self.lane_drive_start_time is not None:
             elapsed_lane = (now - self.lane_drive_start_time).nanoseconds / 1e9
             if elapsed_lane < 8.0:
-                speed = 10.0
+                speed = 5.0
 
         # 모터 제어 메시지 퍼블리시
         motor_msg = Float32MultiArray()
@@ -285,7 +255,7 @@ class MainNode(Node):
             now = time.time()
 
             # 쿨다운 중이면 False
-            if now - self.last_change_time < 10:
+            if now - self.last_change_time < 4:
                 if now - self.last_log_time > 1.0:  # 1초에 한 번만 로그
                     remaining = 5 - (now - self.last_change_time)
                     self.get_logger().info(f"타이머 작동중... 남은 시간: {remaining:.1f}초")

@@ -28,7 +28,7 @@ class ObjectDetectionNode : public rclcpp::Node {
 public:
   ObjectDetectionNode() : Node("object_node") {
     // 파라미터
-    front_fov_deg_       = this->declare_parameter<double>("front_fov_deg", 7.0);
+    front_fov_deg_       = this->declare_parameter<double>("front_fov_deg", 11.0);
     range_min_m_         = this->declare_parameter<double>("range_min_m",   0.05);
     range_max_m_         = this->declare_parameter<double>("range_max_m",   2.0);
     cluster_epsilon_m_   = this->declare_parameter<double>("cluster_epsilon_m", 0.20);
@@ -48,7 +48,7 @@ public:
     
     // --- YOLO 초기화 (경로/옵션은 네 환경에 맞게) ---
     try {
-      net_ = cv::dnn::readNet("/home/helloosy/250805/2025-kookmin-contest/modular/object_detection/best.onnx");
+      net_ = cv::dnn::readNet("/home/xytron/xycar_ws/src/orda/modular/object_detection/best.onnx");
       net_.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
       net_.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
       yolo_ok_ = true;
@@ -56,7 +56,7 @@ public:
       RCLCPP_ERROR(this->get_logger(), "YOLO load failed: %s", e.what());
       yolo_ok_ = false;
     }
-    conf_threshold_ = 0.55f;
+    conf_threshold_ = 0.65f;
     nms_threshold_  = 0.40f;
     min_w_pix_      = 50;
     min_h_pix_      = 30;
