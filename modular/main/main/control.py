@@ -26,7 +26,7 @@ PD_PARAMS = {
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
 # max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
-    RUBBERCONE_DRIVE: (10.0, 10.0, 0.1),
+    RUBBERCONE_DRIVE: (13.0, 13.0, 0.1),
     LANE_DRIVE:       (30.0, 10.0, 0.4),
     CHANGE_LANE:      (10.0, 10.0, 0.1),
 }
@@ -35,7 +35,7 @@ SPEED_PARAMS = {
 # angle: 종료 직후 조향 각도, speed: 종료 직후 속도
 RUBBERCONE_END_PARAMS = {
     'angle': -30.0,
-    'speed': 13.0,
+    'speed': 15.0,
 }
 
 # 장애물 접근 모드 파라미터

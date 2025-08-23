@@ -2,18 +2,21 @@
 // 입력
 //  - /scan : sensor_msgs/msg/LaserScan
 //  - /resized_image : sensor_msgs/msg/Image (BGR8)
+//  - /lane_fit : std_msgs/msg/Float32MultiArray, data=[m,b], x = m*y + b (프레임 좌표계 가정)
 // 출력
-//  - /object_info : std_msgs/msg/Float32MultiArray, [exists, min_dist, angle, span, cluster_size]
+//  - /object_info : std_msgs/msg/Float32MultiArray
+//    [exists, min_dist, angle, span, cluster_size, box_size,
+//     box_cx, box_cy, dx(cx - x_line), lane_label]
 // 시각화
 //  - "OBJECT DEBUG" : exists / distance / cluster_size
-//  - "CAMERA VIEW" : 입력 영상 그대로 출력
+//  - "CAMERA VIEW" : 입력 영상 + (중앙선/박스 중심/델타) 오버레이
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <opencv2/opencv.hpp>
-#include <opencv2/dnn.hpp>          // <-- 추가
+#include <opencv2/dnn.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <mutex>
 #include <limits>
@@ -36,6 +39,11 @@ public:
     detect_threshold_m_  = this->declare_parameter<double>("detect_threshold_m", 6.0);
     enable_gui_          = this->declare_parameter<bool>("enable_gui", true);
 
+    // lane 비교 여유(허용 오차, px)
+    lane_split_margin_px_ = this->declare_parameter<double>("lane_split_margin_px", 6.0);
+    // /lane_fit이 프레임 좌표계인지 여부(기본 true). BEV이면 false로 둔다(별도 H 필요).
+    lane_fit_is_frame_    = this->declare_parameter<bool>("lane_fit_is_frame", true);
+
     sub_scan_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
         "/scan", rclcpp::SensorDataQoS(),
         std::bind(&ObjectDetectionNode::onScan, this, _1));
@@ -44,11 +52,15 @@ public:
         "/resized_image", 10,
         std::bind(&ObjectDetectionNode::onImage, this, _1));
 
+    // ✅ lane_fit 구독 추가
+    sub_lane_fit_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
+        "/lane_fit", 10, std::bind(&ObjectDetectionNode::onLaneFit, this, _1));
+
     pub_obj_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/object_info", 10);
     
-    // --- YOLO 초기화 (경로/옵션은 네 환경에 맞게) ---
+    // --- YOLO 초기화 ---
     try {
-      net_ = cv::dnn::readNet("/home/osy/xycar_ws/src/orda/2025-kookmin-contest/modular/object_detection/best.onnx");
+      net_ = cv::dnn::readNet("/home/xytron/xycar_ws/src/orda/modular/object_detection/best.onnx");
       net_.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
       net_.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
       yolo_ok_ = true;
@@ -67,7 +79,7 @@ public:
       timer_ = this->create_wall_timer(
         std::chrono::milliseconds(33), std::bind(&ObjectDetectionNode::onTimer, this));
     }
-    // ✅ 퍼블리시 전용 타이머 추가 (예: 30Hz)
+    // ✅ 퍼블리시 전용 타이머 (30Hz)
     pub_timer_ = this->create_wall_timer(
       std::chrono::milliseconds(33),
       std::bind(&ObjectDetectionNode::onPublishTick, this));
@@ -81,6 +93,15 @@ public:
   }
 
 private:
+  // ======== Lane Fit 구독 ========
+  void onLaneFit(const std_msgs::msg::Float32MultiArray::SharedPtr msg) {
+    if (msg->data.size() < 2) return;
+    std::lock_guard<std::mutex> lk(mtx_lane_);
+    fit_m_ = msg->data[0];
+    fit_b_ = msg->data[1];
+    fit_valid_ = std::isfinite(fit_m_) && std::isfinite(fit_b_);
+  }
+
   void onScan(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     const int N = static_cast<int>(msg->ranges.size());
     if (N == 0 || msg->angle_increment <= 0.0) {
@@ -161,7 +182,7 @@ private:
     const double ang_start = msg->angle_min + best.start_idx * msg->angle_increment;
     const double ang_end   = msg->angle_min + best.end_idx   * msg->angle_increment;
     const double span = std::fabs(ang_end - ang_start);
-    const float exists = (best.min_r <= detect_threshold_m_) ? 1.0f : 0.0f;
+    const float exists = (best.min_r <= detect_threshold_m_) ? 1.0f : 0.0f; //Unused param
 
     // ✅ 상태만 저장
     {
@@ -210,6 +231,8 @@ private:
     float minr, ang, spn;
     int   cnt;
     float box_area;
+    float cx, cy, dx;
+    int   lane_label;
 
     {
       std::lock_guard<std::mutex> lk(mtx_state_);
@@ -221,14 +244,19 @@ private:
     }
     {
       std::lock_guard<std::mutex> lk(mtx_box_);
-      box_area = last_box_area_pix_;  // 박스 없으면 0
+      box_area   = last_box_area_pix_;  // 박스 없으면 0
+      cx         = last_box_cx_;
+      cy         = last_box_cy_;
+      dx         = last_box_dx_;
+      lane_label = last_lane_label_;
     }
 
     const float exists = (lidar_ok && (minr <= detect_threshold_m_)) ? 1.0f : 0.0f;
 
     std_msgs::msg::Float32MultiArray out;
-    // [exists, min_dist, angle, span, cluster_size, box_size]
-    out.data = { exists, minr, ang, spn, static_cast<float>(cnt), box_area };
+    // [exists, min_dist, angle, span, cluster_size, box_size, box_cx, box_cy, dx, lane_label]
+    out.data = { exists, minr, ang, spn, static_cast<float>(cnt), box_area,
+                 cx, cy, dx, static_cast<float>(lane_label) };
     pub_obj_->publish(out);
 
     // 디버그 패널 숫자 최신화 (선택)
@@ -242,16 +270,16 @@ private:
     }
   }
 
-
   void onImage(const sensor_msgs::msg::Image::SharedPtr msg) {
+    if (!enable_gui_ && !yolo_ok_) return;
+
     cv::Mat img;
-    if (!enable_gui_) return;
     try {
       img = cv_bridge::toCvCopy(msg, "bgr8")->image;
     } catch (cv_bridge::Exception& e) {
       RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+      return;
     }
-
     if (img.empty()) return;
 
     if (enable_gui_) {
@@ -260,6 +288,11 @@ private:
     }
 
     float box_area = 0.0f; // 기본 0 (박스 없음)
+    float box_cx = 0.f, box_cy = 0.f;
+    float box_dx = 0.f; // cx - x_line(cy)
+    int lane_label = 0; // 0: 중앙, 1: 왼쪽(=1차선), 2: 오른쪽(=2차선)
+
+    cv::Rect best_box;
 
     if (yolo_ok_) {
       const int W = img.cols, H = img.rows;
@@ -319,18 +352,50 @@ private:
           if (!keep.empty()) {
             int best = keep[0];
             for (int idx : keep) if (confs[idx] > confs[best]) best = idx;
-            const cv::Rect& b = boxes[best];
-            box_area = static_cast<float>(b.width) * static_cast<float>(b.height); // 픽셀 넓이
+            best_box = boxes[best];
+            box_area = static_cast<float>(best_box.width) * static_cast<float>(best_box.height);
+
+            // 중심 좌표
+            box_cx = static_cast<float>(best_box.x + best_box.width  * 0.5f);
+            box_cy = static_cast<float>(best_box.y + best_box.height * 0.5f);
+
+            // lane 비교 (프레임 좌표계 가정)
+            float m=0.f,b=0.f;
+            bool lane_ok=false;
+            {
+              std::lock_guard<std::mutex> lk(mtx_lane_);
+              lane_ok = fit_valid_;
+              m = fit_m_; b = fit_b_;
+            }
+            if (lane_ok && lane_fit_is_frame_) {
+              float x_line = m * box_cy + b;
+              box_dx = box_cx - x_line;
+              if (box_dx <= -static_cast<float>(lane_split_margin_px_)) lane_label = 1; // 왼쪽(=1차선)
+              else if (box_dx >=  static_cast<float>(lane_split_margin_px_)) lane_label = 2; // 오른쪽(=2차선)
+              else lane_label = 0; // 거의 중앙
+            }
 
             // (옵션) GUI에 박스 그리기
             if (enable_gui_) {
-              cv::Mat overlay;
-              {
-                std::lock_guard<std::mutex> lk(mtx_img_);
-                if (!last_img_.empty()) overlay = last_img_;
-              }
-              if (!overlay.empty()) {
-                cv::rectangle(overlay, b, cv::Scalar(0,255,0), 2);
+              std::lock_guard<std::mutex> lk(mtx_img_);
+              if (!last_img_.empty()) {
+                cv::rectangle(last_img_, best_box, cv::Scalar(0,255,0), 2);
+                cv::circle(last_img_, cv::Point((int)std::round(box_cx),(int)std::round(box_cy)), 4, {0,255,0}, cv::FILLED);
+                // 중앙선도 그려주기 (lane fit 유효할 때)
+                if (fit_valid_) {
+                  int H = last_img_.rows, W = last_img_.cols;
+                  int x_top = (int)std::round(m*0.0f + b);
+                  int x_bot = (int)std::round(m*(H-1.0f) + b);
+                  x_top = std::max(0,std::min(W-1,x_top));
+                  x_bot = std::max(0,std::min(W-1,x_bot));
+                  cv::line(last_img_, {x_top,0}, {x_bot,H-1}, {0,200,255}, 2);
+                  // 델타 시각화
+                  int x_line_cy = (int)std::round(m*box_cy + b);
+                  cv::line(last_img_, {x_line_cy,(int)std::round(box_cy)}, {(int)std::round(box_cx),(int)std::round(box_cy)}, {255,255,255}, 2);
+                  std::string tag = (lane_label==1?"L1": lane_label==2?"L2":"C");
+                  cv::putText(last_img_, "dx="+std::to_string((int)std::round(box_dx))+" "+tag,
+                              {best_box.x, std::max(0,best_box.y-6)}, cv::FONT_HERSHEY_SIMPLEX, 0.6, {255,255,255}, 2);
+                }
               }
             }
           }
@@ -342,6 +407,10 @@ private:
     {
       std::lock_guard<std::mutex> lk(mtx_box_);
       last_box_area_pix_ = box_area;   // 박스 없으면 0
+      last_box_cx_       = box_cx;
+      last_box_cy_       = box_cy;
+      last_box_dx_       = box_dx;
+      last_lane_label_   = lane_label;
     }
   }
 
@@ -380,14 +449,20 @@ private:
     cv::waitKey(1);
   }
 
+  // 유틸
+  rclcpp::Time now() { return this->get_clock()->now(); }
+
   // 파라미터
   double front_fov_deg_, range_min_m_, range_max_m_, cluster_epsilon_m_, detect_threshold_m_;
   int    min_cluster_points_;
   bool   enable_gui_;
+  double lane_split_margin_px_;
+  bool   lane_fit_is_frame_;
 
   // ROS
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr sub_scan_;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_img_;
+  rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sub_lane_fit_;
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pub_obj_;
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::TimerBase::SharedPtr pub_timer_;
@@ -409,11 +484,19 @@ private:
   float conf_threshold_, nms_threshold_;
   int   min_w_pix_, min_h_pix_;
 
-  // --- YOLO 박스 면적 공유 변수 ---
+  // --- YOLO 박스 공유 변수 ---
   std::mutex mtx_box_;
   float last_box_area_pix_ = 0.0f;   // 박스 없으면 0
+  float last_box_cx_ = 0.f, last_box_cy_ = 0.f;
+  float last_box_dx_ = 0.f;
+  int   last_lane_label_ = 0;
 
-  // 퍼블리시용 공유 상태
+  // --- lane fit 상태 ---
+  std::mutex mtx_lane_;
+  float fit_m_ = 0.f, fit_b_ = 0.f;
+  bool  fit_valid_ = false;
+
+  // 퍼블리시용 공유 상태 (LiDAR)
   std::mutex mtx_state_;
   bool  lidar_valid_ = false;
   float st_min_r_     = std::numeric_limits<float>::infinity();

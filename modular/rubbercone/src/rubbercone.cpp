@@ -132,7 +132,7 @@ private:
 
     if (left_group.size() >= 2 && right_group.size() >= 2) {
       // 케이스 1: 양쪽 2개 이상
-      if (start < 50) {
+      if (start < 30) {
         start++;
       }
         cv::Point2f lm{ (left_group[0].x + left_group[1].x) * 0.5f,
@@ -160,7 +160,7 @@ private:
 
       } 
 
-      else if (start == 50) {
+      else if (start == 30) {
         has_mid = false;
 
       }
