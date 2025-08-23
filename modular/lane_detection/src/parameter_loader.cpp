@@ -51,9 +51,11 @@ Config load_config(const std::string& path) {
     config.horizontal_noise_band_h = j["horizontal_noise_band_h"];
     config.horizontal_noise_extra_pad = j["horizontal_noise_extra_pad"];
     config.horizontal_band_corridor_ratio_thresh = j["horizontal_band_corridor_ratio_thresh"];
-    config.lane_change_o_base_px = j["lane_change_o_base_px"];
-    config.lane_change_g_slope_px = j["lane_change_g_slope_px"];
-    config.lane_change_d_tol_px = j["lane_change_d_tol_px"];
+    config.lane_change_tol_straight = j["lane_change_tol_straight"];
+    config.lane_change_tol_curve = j["lane_change_tol_curve"];
+    config.lane_change_tol_change = j["lane_change_tol_change"];
+    config.lane_change_streak_need = j["lane_change_streak_need"];
+    config.lane_change_m_split = j["lane_change_m_split"];
     config.debug_view = j["debug_view"];
     return config;
 }

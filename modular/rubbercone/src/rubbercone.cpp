@@ -52,7 +52,7 @@ private:
     pts.reserve(msg->ranges.size());
     for (float range : msg->ranges) {
       if (std::isfinite(range) &&
-          range >= 0.18f && range <= 1.00f &&
+          range >= 0.18f && range <= 0.90f &&
           angle >= -ANG_MAX && angle <= ANG_MAX) {
         // 좌표계: x=전방, y=좌측(표준적 레이저 프레임 가정)
         pts.emplace_back(range * std::cos(angle),

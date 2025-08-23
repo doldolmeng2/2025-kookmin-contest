@@ -639,45 +639,38 @@ public:
 
     // 변경 성공/진행 상태 업데이트 + 퍼블리시
     void updateLaneChangeState(bool valid, const LineFit& center_fit, float offset) {
-        // 퍼블리시용 changing 플래그
-        int changing_flag = changing_ ? 1 : 0;
+        const bool mode_changing = (current_mode_ == 5);
+        int changing_flag = mode_changing ? 1 : 0;
 
-        // 모드 5에서만(=changing_=true) 검증 수행
-        if (check_active_ && current_mode_ == 5) {
-            // 곡선 보정 허용치
-            float m = center_fit.m;
-            float slope_term = std::min(1.0f, std::abs(m));
-            float O_tol = O_BASE_PX_ + G_SLOPE_PX_ * slope_term;
+        if (mode_changing && valid) {
+            const float off = std::abs(offset);
+            const bool  is_curve    = (std::abs(center_fit.m) >= M_SPLIT_); // ← 여기!
+            const float tol_settle  = is_curve ? TOL_CURVE_ : TOL_STRAIGHT_;
 
-            // Δoffset
-            float d_off = 0.f;
-            if (has_last_offset_) d_off = offset - last_offset_;
-            last_offset_ = offset;
-            has_last_offset_ = true;
+            if (change_phase_ == WAIT_SPIKE) {
+                if (off >= TOL_CHANGE_) {
+                    change_phase_ = WAIT_SETTLE;
+                    stable_streak_ = 0;
+                }
+            } else { // WAIT_SETTLE
+                if (off <= tol_settle) stable_streak_++;
+                else                   stable_streak_ = 0;
 
-            // 안정 프레임 판정
-            bool frame_ok = valid &&
-                            (std::abs(offset) <= O_tol) &&
-                            (std::abs(d_off) <= D_TOL_PX_);
-
-            stable_streak_ = frame_ok ? (stable_streak_ + 1) : 0;
-
-            // 성공: 아직 래치 안됐고, 연속 프레임 충족 시 1프레임 펄스
-            if (!success_latched_ && stable_streak_ >= STABLE_NEED_) {
-                success_pulse_ = SUCCESS_PULSE_FRAMES_;
-                success_latched_ = true;   // 모드 5 유지 중엔 재발행 방지
-                check_active_ = false;     // 더 이상 카운트 불필요(원하면 유지해도 무방)
+                if (stable_streak_ >= STREAK_NEED_) {
+                    success_pulse_ = success_pulse_frames_;
+                    change_phase_  = WAIT_SPIKE;
+                    stable_streak_ = 0;
+                }
             }
+        } else {
+            change_phase_  = WAIT_SPIKE;
+            stable_streak_ = 0;
         }
 
-        // 성공 펄스(1프레임) 생성
-        int success_flag = (success_pulse_ > 0) ? 1 : 0;
-
         std_msgs::msg::Int32MultiArray st;
-        st.data = { changing_flag, success_flag };  // [변경중, 성공]
+        st.data = { changing_flag, (success_pulse_ > 0 ? 1 : 0) };
         lane_change_state_pub_->publish(st);
-
-        if (success_pulse_ > 0) success_pulse_--;   // 펄스 다운카운트
+        if (success_pulse_ > 0) success_pulse_--;
     }
 
 private:
@@ -713,25 +706,23 @@ private:
     int debug_stride_ = 1; // 디버그 출력 주기 (1이면 매 프레임)
     bool debug_view_ = config_.debug_view; // 시각화 여부 (Config에서 불러옴)
 
-
     // ===== 차선 변경 상태 추적 =====
     int  current_mode_ = 0;
     int  current_lane_ = 0;
-    bool changing_ = false;          // 변경중인지여부 (mode==5일 때 1)
     bool check_active_ = false;      // 5→3 전환 후 "성공 검증" 진행 중
-    int  stable_streak_ = 0;         // 안정 프레임 연속 개수
-    bool has_last_offset_ = false;
-    float last_offset_ = 0.f;
-    int  success_pulse_ = 0;         // 성공 펄스(프레임 수), 0이면 off
-    bool success_latched_ = false;  // 모드 5 동안 성공 1회만 펄스 내보내기
 
     // ===== 차선 변경 상태 추적 임계값 (필요시 Config로 빼도 됨) =====
-    const float O_BASE_PX_   = config_.lane_change_o_base_px; // 직선 기준 허용 오프셋(px)
-    const float G_SLOPE_PX_  = config_.lane_change_g_slope_px; // 커브(기울기) 보정 허용치(px)
-    const float D_TOL_PX_    = config_.lane_change_d_tol_px; // 프레임 간 offset 변화 허용(px)
-    const int   STABLE_NEED_ = 8;    // 안정 프레임 연속 필요 개수
-    const int   SUCCESS_PULSE_FRAMES_ = 1; // 성공 시 1프레임만 1로 펄스
+    float TOL_STRAIGHT_ = config_.lane_change_tol_straight; // 직선에서 허용 offset
+    float TOL_CURVE_    = config_.lane_change_tol_curve; // 곡선에서 허용 offset (직선보다 넓게)
+    float TOL_CHANGE_   = config_.lane_change_tol_change; // "차선 변경 순간"으로 볼 offset (둘보다 확 넓게)
+    int   STREAK_NEED_  = config_.lane_change_streak_need;    // 안정 프레임 연속 필요 개수
+    float M_SPLIT_      = config_.lane_change_m_split; // |m|>=M_SPLIT_이면 곡선으로 간주
 
+    enum Phase { WAIT_SPIKE=0, WAIT_SETTLE=1 } change_phase_ = WAIT_SPIKE;
+    int   stable_streak_ = 0;
+    int   success_pulse_ = 0;        // 성공 1프레임 펄스
+    int   success_pulse_frames_ = 1; // 펄스 길이(원하면 2~3)
+    
     // ===== 콜백: 카메라 영상 처리 파이프라인 =====
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         // (0) ROS 이미지 → OpenCV Mat 변환
@@ -854,30 +845,20 @@ private:
         }
         // ============================================================
 
-        // 변경중 플래그
-        changing_ = (current_mode_ == 5);
-
-        // 공통 리셋 람다
-        auto reset_check_state = [&](){
-            check_active_ = false;
-            stable_streak_ = 0;
-            has_last_offset_ = false;
-            success_pulse_ = 0;
-            success_latched_ = false;
-        };
-
         // 1) 5로 "진입"할 때만 검증 시작
         if (prev_mode != 5 && current_mode_ == 5) {
             check_active_ = true;      // 모드 5에서 계속 검증
             stable_streak_ = 0;
-            has_last_offset_ = false;
             success_pulse_ = 0;
-            success_latched_ = false;  // 새 변경 시도 → 래치 해제
+            change_phase_    = WAIT_SPIKE;
         }
 
         // 2) 5에서 벗어나면(외부가 3으로 바꿔줄 때 등) 상태 리셋
         if (prev_mode == 5 && current_mode_ != 5) {
-            reset_check_state();
+            check_active_    = false;
+            stable_streak_   = 0;
+            success_pulse_   = 0;
+            change_phase_    = WAIT_SPIKE;
         }
     }
 };
@@ -888,7 +869,7 @@ int main(int argc, char** argv) {
 
     // JSON 파라미터 파일 로드 (경로 환경에 맞게 수정)
     Config config = load_config(
-        "/home/osy/xycar_ws/src/orda/2025-kookmin-contest/modular/lane_detection/lane_detection_parameter.json"
+        "/home/xytron/xycar_ws/src/orda/modular/lane_detection/lane_detection_parameter.json"
     );
 
     // 노드 생성 및 실행

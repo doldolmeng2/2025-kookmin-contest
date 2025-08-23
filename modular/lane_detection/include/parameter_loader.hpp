@@ -43,9 +43,11 @@ struct Config {
     int horizontal_noise_band_h;
     int horizontal_noise_extra_pad;
     float horizontal_band_corridor_ratio_thresh;
-    float lane_change_o_base_px;
-    float lane_change_g_slope_px;
-    float lane_change_d_tol_px;
+    float lane_change_tol_straight;
+    float lane_change_tol_curve;
+    float lane_change_tol_change;
+    int lane_change_streak_need;
+    float lane_change_m_split;
     bool debug_view;
 };
 LaneMode lane_mode_from_string(const std::string& mode_str);

@@ -46,7 +46,7 @@ class MainNode(Node):
 
         # ---- Variables ----
         self.test_mode = False
-        self.lane = 0  # 0=Lane1, 1=Lane2
+        self.lane = 1  # 0=Lane1, 1=Lane2
         self.rubbercone_offset = 0
         self.end_flag = 0
         self.lane_offset = 0
@@ -54,7 +54,7 @@ class MainNode(Node):
         self.object_dist = 0.0
         self.traffic_green = False
         self.rubbercone_end_time = None
-        self.into_lane_timer = 1.7
+        self.into_lane_timer = 1.3
         self.lane_drive_started = False
         self.lane_drive_start_time = None
 
