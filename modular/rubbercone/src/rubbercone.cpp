@@ -43,23 +43,26 @@ private:
     info_pub_->publish(msg);
   }
 
-  void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
-    // 1) 유효 포인트 수집
-    const float ANG_MAX = 85.0f * static_cast<float>(M_PI) / 180.0f;
-    std::vector<cv::Point2f> pts;
-    float angle = msg->angle_min;
+	void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+	  const float ANG_MAX = 85.0f * M_PI / 180.0f;
+	  const float ANG_IGNORE = 22.5f * M_PI / 180.0f;  // 전방 ±10° 무시
 
-    pts.reserve(msg->ranges.size());
-    for (float range : msg->ranges) {
-      if (std::isfinite(range) &&
-          range >= 0.18f && range <= 0.90f &&
-          angle >= -ANG_MAX && angle <= ANG_MAX) {
-        // 좌표계: x=전방, y=좌측(표준적 레이저 프레임 가정)
-        pts.emplace_back(range * std::cos(angle),
-                         range * std::sin(angle));
-      }
-      angle += msg->angle_increment;
-    }
+	  std::vector<cv::Point2f> pts;
+	  float angle = msg->angle_min;
+	  for (float range : msg->ranges) {
+		if (std::isfinite(range) &&
+			range >= 0.18f && range <= 0.90f &&
+			angle >= -ANG_MAX && angle <= ANG_MAX) {
+		  // 전방 ±ANG_IGNORE 영역은 건너뛰기
+		  if (std::abs(angle) < ANG_IGNORE) {
+			angle += msg->angle_increment;
+			continue;
+		  }
+		  pts.emplace_back(range * std::cos(angle),
+						   range * std::sin(angle));
+		}
+		angle += msg->angle_increment;
+	  }
 
     if (pts.size() < 2) {
       rubber_end_value_ = 0;
