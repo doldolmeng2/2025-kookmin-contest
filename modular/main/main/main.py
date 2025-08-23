@@ -155,7 +155,7 @@ class MainNode(Node):
 
             elif self.mode == LANE_DRIVE:
                 # YOLO 박스 넓이 기반 접근 조건 + 같은 차선에서만 카운트
-                cond_box  = self.box_size >= 700.0
+                cond_box  = self.box_size >= 100.0
                 cond_same = self.obstacle_same_lane()
                 if cond_box and cond_same:
                     self.cond_count += 1
@@ -207,11 +207,11 @@ class MainNode(Node):
         if self.mode == TRAFFIC_WAIT:
             self.lane_drive_started = False
 
-        # LANE_DRIVE 진입 후 3초간 속도 제한
+        # LANE_DRIVE 진입 후 8초간 속도 제한
         if self.mode == LANE_DRIVE and self.lane_drive_start_time is not None:
             elapsed_lane = (now - self.lane_drive_start_time).nanoseconds / 1e9
-            if elapsed_lane < 3.0:
-                speed = 5.0
+            if elapsed_lane < 8.0:
+                speed = 7.0
 
         # 모터 퍼블리시
         motor_msg = Float32MultiArray()

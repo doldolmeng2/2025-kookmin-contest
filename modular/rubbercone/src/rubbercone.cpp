@@ -43,9 +43,10 @@ private:
     info_pub_->publish(msg);
   }
 
-	void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+	void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) 
+  {
 	  const float ANG_MAX = 95.0f * M_PI / 180.0f;
-	  const float ANG_IGNORE = 13.2f * M_PI / 180.0f;  // 전방 ±10° 무시
+	  const float ANG_IGNORE = 13.0f * M_PI / 180.0f;  // 전방 ±10° 무시
 
 	  std::vector<cv::Point2f> pts;
 	  float angle = msg->angle_min;
@@ -95,7 +96,7 @@ private:
       cv::Point2f cur = first;
 
       // 최대 4개까지 확장
-      while (group.size() < 3) {
+      while (group.size() < 4) {
         cv::Point2f next{};
         float best = 1e6f;
         bool ok = false;

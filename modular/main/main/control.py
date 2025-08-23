@@ -19,15 +19,15 @@ CHANGE_LANE       = 5  # 차선 변경 모드
 # kp: 비례 이득, kd: 미분 이득, alpha: 비선형 보정 계수
 PD_PARAMS = {
     RUBBERCONE_DRIVE: (1.1, 0.0, 0.0),
-    LANE_DRIVE:       (0.15, 0.45, 0.0),
+    LANE_DRIVE:       (0.18, 0.45, 0.0),
     CHANGE_LANE:      (1, 0.0, 0.0),
 }
 
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
 # max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
-    RUBBERCONE_DRIVE: (13.0, 13.0, 0.1),
-    LANE_DRIVE:       (30.0, 15.0, 0.5),
+    RUBBERCONE_DRIVE: (14.0, 14.0, 0.1),
+    LANE_DRIVE:       (25.0, 15.0, 0.5),
     CHANGE_LANE:      (10.0, 10.0, 0.1),
 }
 
@@ -116,14 +116,14 @@ class Controller:
             # 장애물 접근: 차선 주행 조향 + PI 제어 속도
             self.angle = self._compute_steering_pd(LANE_DRIVE, offset)
             # self.speed = self._compute_obstacle_speed(obstacle_dist) if obstacle_dist > 0 else 0.0
-            self.speed = 5
+            self.speed = 10
 
         elif mode == CHANGE_LANE:
             # 장애물 접근: 차선 주행 조향 + PI 제어 속도
             self.angle = self._compute_steering_pd(mode, offset)
             params     = self.speed_params.get(mode)
             raw_speed = self._compute_speed_from_angle(self.angle, params) if params else 0.5
-            self.speed = raw_speed * 0.6   # 60%로 줄이기
+            self.speed = raw_speed * 0.7   # 60%로 줄이기
 
         else:
             # 정의되지 않은 모드에서는 안전 정지
