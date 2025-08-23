@@ -44,14 +44,14 @@ private:
   }
 
 	void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
-	  const float ANG_MAX = 85.0f * M_PI / 180.0f;
-	  const float ANG_IGNORE = 22.5f * M_PI / 180.0f;  // 전방 ±10° 무시
+	  const float ANG_MAX = 95.0f * M_PI / 180.0f;
+	  const float ANG_IGNORE = 13.2f * M_PI / 180.0f;  // 전방 ±10° 무시
 
 	  std::vector<cv::Point2f> pts;
 	  float angle = msg->angle_min;
 	  for (float range : msg->ranges) {
 		if (std::isfinite(range) &&
-			range >= 0.18f && range <= 0.90f &&
+			range >= 0.18f && range <= 0.95f &&
 			angle >= -ANG_MAX && angle <= ANG_MAX) {
 		  // 전방 ±ANG_IGNORE 영역은 건너뛰기
 		  if (std::abs(angle) < ANG_IGNORE) {
@@ -95,7 +95,7 @@ private:
       cv::Point2f cur = first;
 
       // 최대 4개까지 확장
-      while (group.size() < 4) {
+      while (group.size() < 3) {
         cv::Point2f next{};
         float best = 1e6f;
         bool ok = false;
@@ -167,20 +167,7 @@ private:
         has_mid = false;
 
       }
-      //else if (left_group.empty() && right_group.size() >= 2  ) {
-    //     // 케이스 4: 오른쪽 2개 이상만 보일 때
-    //      finish = 1;
-    //      RCLCPP_INFO(get_logger(), "어어 밀지마라 오른쪽2개 이상만 보임");
-    //      cv::Point2f &R0 = right_group[0];
-    //      cv::Point2f &R1 = right_group[1];
-    //      cv::Point2f v{ R1.x - R0.x, R1.y - R0.y };       // 원래 벡터
-    //      float norm = std::hypot(v.x, v.y);               // 벡터 길이
-    //      if (norm > 1e-6f) {
-    //        // 반시계 방향으로 90° 회전시킨 단위 법선 벡터
-    //        cv::Point2f unit_perp{ -v.y / norm, v.x / norm };
-    //        target = R0 + unit_perp * 0.42f;
-    //        has_mid = false;}
-    // }
+     
     if (has_mid) {
       float offset = -target.y * OFFSET_GAIN_;
       rubber_offset_value_ = static_cast<int32_t>(std::round(offset));
