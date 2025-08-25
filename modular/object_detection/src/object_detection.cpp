@@ -60,7 +60,7 @@ public:
     
     // --- YOLO 초기화 ---
     try {
-      net_ = cv::dnn::readNet("/home/xytron/xycar_ws/src/orda/modular/object_detection/best.onnx");
+      net_ = cv::dnn::readNet("/home/osy/xycar_ws/src/orda/2025-kookmin-contest/modular/object_detection/best.onnx");
       net_.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
       net_.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
       yolo_ok_ = true;

@@ -270,6 +270,98 @@ public:
     }
 
     // ====================================================================
+    // 열 밴드 기반 노이즈 억제
+    //
+    // - BEV 이진 영상에서 여러 열을 band_w 폭으로 묶어서 검사
+    // - band 폭 안에서 "세로 픽셀 합"이 충분히 크면 → 노이즈 밴드로 판단
+    // - 밴드 전체(x축 band 범위, y_start~y_end)와 양쪽 half_w 여유까지 0으로 지움
+    // - 디버그 그림(vis)이 있으면 빨간색으로 칠함
+    //
+    // 입력:
+    //   bev_in     : BEV 이진영상
+    //   x_min~x_max: 검사할 가로 범위
+    //   y_start~y_end: 검사할 세로 범위
+    //   band_w     : 한 번에 묶어볼 열 밴드 폭
+    //   min_pixels : 밴드 내 최소 픽셀 수 (절대 기준)
+    //   peak_ratio : 최대 피크 대비 비율 기준 (0~1)
+    //   half_w     : 밴드 주변 확장 폭
+    // ====================================================================
+    bool suppressColumnBands(const cv::Mat& bev_in,
+                            cv::Mat& bev_out,
+                            int x_min, int x_max,
+                            int y_start, int y_end,
+                            int band_w,
+                            int min_pixels,
+                            float peak_ratio,
+                            int half_w,
+                            cv::Mat* vis /*=nullptr*/)
+    {
+        CV_Assert(bev_in.type() == CV_8UC1);
+        const int H = bev_in.rows, W = bev_in.cols;
+
+        // 경계 보정
+        x_min   = std::max(0, x_min);
+        x_max   = std::min(W - 1, x_max);
+        y_start = std::max(0, y_start);
+        y_end   = (y_end <= 0 || y_end > H) ? H : y_end;
+        band_w  = std::max(1, band_w);
+        half_w  = std::max(0, half_w);
+
+        bev_out = bev_in.clone();
+        if (x_min > x_max || y_start >= y_end) return false;
+
+        // (1) ROI 영역 세로 합
+        cv::Mat roi = bev_in(cv::Rect(x_min, y_start, x_max - x_min + 1, y_end - y_start));
+        cv::Mat nz = (roi > 0);
+        cv::Mat colSum32S;
+        cv::reduce(nz, colSum32S, 0, cv::REDUCE_SUM, CV_32S); // (1 x width)
+
+        // (2) maxVal 찾기
+        int maxVal = 0;
+        for (int i=0; i<colSum32S.cols; ++i)
+            maxVal = std::max(maxVal, colSum32S.at<int>(0,i)/255);
+
+        bool any = false;
+
+        // (3) band_w 폭 단위로 검사
+        for (int i=0; i<colSum32S.cols; i += band_w) {
+            int x_band_start = x_min + i;
+            int x_band_end   = std::min(x_max, x_band_start + band_w - 1);
+
+            // 밴드 내 픽셀 합
+            int bandPix = 0;
+            for (int j=i; j< i+band_w && j<colSum32S.cols; ++j) {
+                bandPix += colSum32S.at<int>(0,j) / 255;
+            }
+
+            // 절대 기준 + 비율 기준
+            bool cond_abs = (bandPix >= min_pixels);
+            bool cond_rel = (peak_ratio > 0.f) ? (bandPix >= maxVal * peak_ratio) : true;
+
+            if (cond_abs && cond_rel) {
+                // 삭제 구간: 밴드 + 좌우 half_w
+                int xl = std::max(0, x_band_start - half_w);
+                int xr = std::min(W-1, x_band_end + half_w);
+
+                for (int yy=y_start; yy<y_end; ++yy) {
+                    uchar* row = bev_out.ptr<uchar>(yy);
+                    std::memset(row + xl, 0, (xr - xl + 1));
+                }
+
+                if (vis && !vis->empty()) {
+                    cv::rectangle(*vis,
+                                cv::Rect(xl, y_start, xr - xl + 1, y_end - y_start),
+                                cv::Scalar(0,0,255), cv::FILLED);
+                }
+
+                any = true;
+            }
+        }
+
+        return any;
+    }
+
+    // ====================================================================
     // (4) BEV 상에서 슬라이딩 윈도우로 중앙선 포인트 수집 → 직선 피팅
     //  - 입력:  bev_binary (CV_8UC1, BEV에서의 이진 에지 영상)
     //  - 출력:  LineFit { m, b }  (x = m*y + b)
@@ -828,7 +920,8 @@ private:
         int x_min = ref_x_ - static_cast<int>(config_.corridor_width / 2);
         int x_max = ref_x_ + static_cast<int>(config_.corridor_width / 2);
         
-        // 억제 실행 + 색칠
+
+        // 3-1) 수평 줄 억제
         cv::Mat bev_clean;
         bool suppressed = suppressHorizontalNoiseRows(
             bev_yellow, bev_clean,
@@ -846,9 +939,30 @@ private:
             bev_yellow = bev_clean; // 이후 파이프라인은 억제된 영상 사용
         }
 
+        // 3-2) 열 합 기반 피크 억제 (추가)
+        cv::Mat bev_clean2;
+        // corridor만 쓸지 전체폭 쓸지 선택.
+        // vertical_noise_peak_use_corridor true면 corridor만 검사, false면 전체 폭
+        int cx_min = config_.vertical_noise_peak_use_corridor ? x_min : 0;
+        int cx_max = config_.vertical_noise_peak_use_corridor ? x_max : (bev_size_.width - 1);
+
+        bool suppressed2 = suppressColumnBands(
+            bev_yellow, bev_clean2,
+            cx_min, cx_max,
+            y_start_chk, y_end_chk,
+            config_.vertical_noise_band_w,     // 새로 추가할 band 폭
+            config_.vertical_noise_min_pixels, // 최소 픽셀 기준
+            config_.vertical_noise_peak_ratio, // 최대 대비 비율
+            config_.vertical_noise_extra_pad_half_width, // 주변 여유 폭
+            &bev_color // 빨간 칠
+        );
+        if (suppressed2) {
+            bev_yellow = bev_clean2;
+        }
+
         // 디버그 표시
         if (debug_view_) {
-            cv::imshow("BEV-Yellow (suppressed rows in red)", bev_color);
+            cv::imshow("BEV-Yellow (suppressed rows/columns in red)", bev_color);
         }
 
         // 디버그 스로틀 적용
@@ -952,7 +1066,7 @@ int main(int argc, char** argv) {
 
     // JSON 파라미터 파일 로드 (경로 환경에 맞게 수정)
     Config config = load_config(
-        "/home/xytron/xycar_ws/src/orda/modular/lane_detection/lane_detection_parameter.json"
+        "/home/osy/xycar_ws/src/orda/2025-kookmin-contest/modular/lane_detection/lane_detection_parameter.json"
     );
 
     // 노드 생성 및 실행

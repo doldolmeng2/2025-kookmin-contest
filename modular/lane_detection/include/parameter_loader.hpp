@@ -43,6 +43,11 @@ struct Config {
     int horizontal_noise_band_h;
     int horizontal_noise_extra_pad;
     float horizontal_band_corridor_ratio_thresh;
+    int vertical_noise_band_w;
+    int vertical_noise_min_pixels;
+    float vertical_noise_peak_ratio;
+    int vertical_noise_extra_pad_half_width;
+    bool vertical_noise_peak_use_corridor;
     float lane_change_tol_straight;
     float lane_change_tol_curve;
     float lane_change_tol_change;
