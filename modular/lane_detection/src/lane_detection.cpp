@@ -69,16 +69,16 @@ public:
         // 6) ROI 사다리꼴을 BEV 직사각형으로 변환하기 위한 호모그래피 행렬 계산
         buildHomography();
 
-        // lane ref 전환 시간: config에 있으면 사용(없거나 <=0면 기본 0.8초)
-        if (config_.lane_ref_transition_duration_sec > 0.0)
-            ref_transition_duration_sec_ = config_.lane_ref_transition_duration_sec;
+        // // lane ref 전환 시간: config에 있으면 사용(없거나 <=0면 기본 0.8초)
+        // if (config_.lane_ref_transition_duration_sec > 0.0)
+        //     ref_transition_duration_sec_ = config_.lane_ref_transition_duration_sec;
 
-        // 초기 ref 비율은 현재 lane_mode_ 기준의 목표값으로 설정
-        ref_ratio_current_ = getTargetRefForMode(lane_mode_);
-        ref_ratio_start_   = ref_ratio_current_;
-        ref_ratio_target_  = ref_ratio_current_;
-        ref_start_time_    = this->now();
-        ref_transition_active_ = false;
+        // // 초기 ref 비율은 현재 lane_mode_ 기준의 목표값으로 설정
+        // ref_ratio_current_ = getTargetRefForMode(lane_mode_);
+        // ref_ratio_start_   = ref_ratio_current_;
+        // ref_ratio_target_  = ref_ratio_current_;
+        // ref_start_time_    = this->now();
+        // ref_transition_active_ = false;
 
     }
 
@@ -286,11 +286,11 @@ public:
         // ---------- 1) reference 기반 가로 "코리도어(corridor)" 설정 ----------
         //  - 목적: 검색 범위를 기준선 주변으로 제한하여 오탐/계산량 감소
         //  - ref_ratio: 모드별 기준선 비율(0~1), BEV 폭에 곱해 픽셀 x좌표로 변환
-        // float ref_ratio = (lane_mode_ == LaneMode::LANE_ONE) ? center_reference_lane_one_
-        //                                                     : center_reference_lane_two_;
-        // ref_x_ = static_cast<int>(std::round(std::clamp(ref_ratio, 0.0f, 1.0f) * w));
-        float ref_ratio = std::clamp(ref_ratio_current_, 0.0f, 1.0f);
-        ref_x_ = static_cast<int>(std::round(ref_ratio * w));
+        float ref_ratio = (lane_mode_ == LaneMode::LANE_ONE) ? center_reference_lane_one_
+                                                            : center_reference_lane_two_;
+        ref_x_ = static_cast<int>(std::round(std::clamp(ref_ratio, 0.0f, 1.0f) * w));
+        // float ref_ratio = std::clamp(ref_ratio_current_, 0.0f, 1.0f);
+        // ref_x_ = static_cast<int>(std::round(ref_ratio * w));
 
         // corridor 좌우 경계 (폭은 config_.corridor_width)
         int x_min = std::max(0, ref_x_ - static_cast<int>(config_.corridor_width / 2));
@@ -490,12 +490,12 @@ public:
         float x_mean = 0.5f * (x1 + x2);
 
         // 4) 모드별 기준선(ref_ratio)을 픽셀로 변환 → x_ref
-        // float ref_ratio = (lane_mode_ == LaneMode::LANE_ONE) ? center_reference_lane_one_ : center_reference_lane_two_;
-        // ref_ratio = std::clamp(ref_ratio, 0.0f, 1.0f);
-        // float x_ref = ref_ratio * static_cast<float>(bev_width);
-        
-        float ref_ratio = std::clamp(ref_ratio_current_, 0.0f, 1.0f);
+        float ref_ratio = (lane_mode_ == LaneMode::LANE_ONE) ? center_reference_lane_one_ : center_reference_lane_two_;
+        ref_ratio = std::clamp(ref_ratio, 0.0f, 1.0f);
         float x_ref = ref_ratio * static_cast<float>(bev_width);
+        
+        // float ref_ratio = std::clamp(ref_ratio_current_, 0.0f, 1.0f);
+        // float x_ref = ref_ratio * static_cast<float>(bev_width);
 
         // 5) 오프셋(픽셀) 계산
         //    +면 중앙선이 기준선보다 오른쪽, -면 왼쪽
@@ -690,34 +690,34 @@ public:
         if (success_pulse_ > 0) success_pulse_--;
     }
 
-    // lane mode → 목표 ref 비율(0~1)
-    float getTargetRefForMode(LaneMode m) const {
-        float r = (m == LaneMode::LANE_ONE) ? center_reference_lane_one_
-                                            : center_reference_lane_two_;
-        return std::clamp(r, 0.0f, 1.0f);
-    }
+    // // lane mode → 목표 ref 비율(0~1)
+    // float getTargetRefForMode(LaneMode m) const {
+    //     float r = (m == LaneMode::LANE_ONE) ? center_reference_lane_one_
+    //                                         : center_reference_lane_two_;
+    //     return std::clamp(r, 0.0f, 1.0f);
+    // }
 
-    // 전환 시작: 현재값→목표값을 duration 동안 선형보간
-    void startRefTransition(LaneMode new_mode) {
-        ref_ratio_start_   = ref_ratio_current_;
-        ref_ratio_target_  = getTargetRefForMode(new_mode);
-        ref_start_time_    = this->now();
-        ref_transition_active_ = true;
-    }
+    // // 전환 시작: 현재값→목표값을 duration 동안 선형보간
+    // void startRefTransition(LaneMode new_mode) {
+    //     ref_ratio_start_   = ref_ratio_current_;
+    //     ref_ratio_target_  = getTargetRefForMode(new_mode);
+    //     ref_start_time_    = this->now();
+    //     ref_transition_active_ = true;
+    // }
 
-    // 매 프레임 호출해서 ref_ratio_current_를 갱신
-    void updateRefRatio() {
-        if (!ref_transition_active_) return;
-        const double t = (this->now() - ref_start_time_).seconds();
-        if (t >= ref_transition_duration_sec_) {
-            ref_ratio_current_     = ref_ratio_target_;
-            ref_transition_active_ = false;
-            return;
-        }
-        const double dur = std::max(1e-6, ref_transition_duration_sec_);
-        const float  a   = static_cast<float>(t / dur);      // 0~1
-        ref_ratio_current_ = ref_ratio_start_ + (ref_ratio_target_ - ref_ratio_start_) * a;
-    }
+    // // 매 프레임 호출해서 ref_ratio_current_를 갱신
+    // void updateRefRatio() {
+    //     if (!ref_transition_active_) return;
+    //     const double t = (this->now() - ref_start_time_).seconds();
+    //     if (t >= ref_transition_duration_sec_) {
+    //         ref_ratio_current_     = ref_ratio_target_;
+    //         ref_transition_active_ = false;
+    //         return;
+    //     }
+    //     const double dur = std::max(1e-6, ref_transition_duration_sec_);
+    //     const float  a   = static_cast<float>(t / dur);      // 0~1
+    //     ref_ratio_current_ = ref_ratio_start_ + (ref_ratio_target_ - ref_ratio_start_) * a;
+    // }
 
 
 private:
@@ -780,6 +780,10 @@ private:
 
     // ===== 콜백: 카메라 영상 처리 파이프라인 =====
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
+
+        // 연산 속도 측정 시작
+        auto start = std::chrono::steady_clock::now();
+
         // (0) ROS 이미지 → OpenCV Mat 변환
         cv_bridge::CvImagePtr cv_ptr;
         try {
@@ -875,9 +879,19 @@ private:
 
         // offset 계산 발행 + 디버그 출력
         publishAndDebug(frame, offset, center_fit, show_dbg, /*dbg_from_fit=*/(dbg.empty()? nullptr : &dbg));
+        
     
         // === 차선 변경 상태 업데이트/퍼블리시 ===
         updateLaneChangeState(/*valid=*/valid, /*center_fit=*/center_fit, /*offset=*/offset);
+
+        // 연산 속도 측정 끝 //
+        auto end = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+        // std::cout << "Cycle time: " << duration.count() << " us" << std::endl;
+        // 연산 속도 측정 끝 //
+        
+        
     }
 
     // ===== 콜백: 모드/레인 변경 =====
@@ -895,22 +909,22 @@ private:
         // ===================== lane_mode_ 갱신 규칙 =====================
         // 1) 변경 모드(5)일 때는 그대로 갱신
         // 2) "모드 3이 아니었다가 → 3이 된 순간"에도 갱신
-        // if (new_mode == 5 || (prev_mode != 3 && new_mode == 3)) {
-        //     lane_mode_ = (new_lane == 0) ? LaneMode::LANE_ONE : LaneMode::LANE_TWO;
-        // }
-
-        // lane_mode_ 변경 감지 후, 부드러운 전환 시작
-        LaneMode old_lane_mode = lane_mode_;
-
-        // 기존 규칙대로 lane_mode_ 갱신
         if (new_mode == 5 || (prev_mode != 3 && new_mode == 3)) {
             lane_mode_ = (new_lane == 0) ? LaneMode::LANE_ONE : LaneMode::LANE_TWO;
         }
 
-        // 바뀌었으면 ref 전환 시작
-        if (lane_mode_ != old_lane_mode) {
-            startRefTransition(lane_mode_);
-        }
+        // // lane_mode_ 변경 감지 후, 부드러운 전환 시작
+        // LaneMode old_lane_mode = lane_mode_;
+
+        // // 기존 규칙대로 lane_mode_ 갱신
+        // if (new_mode == 5 || (prev_mode != 3 && new_mode == 3)) {
+        //     lane_mode_ = (new_lane == 0) ? LaneMode::LANE_ONE : LaneMode::LANE_TWO;
+        // }
+
+        // // 바뀌었으면 ref 전환 시작
+        // if (lane_mode_ != old_lane_mode) {
+        //     startRefTransition(lane_mode_);
+        // }
 
         // ============================================================
 

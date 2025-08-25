@@ -45,8 +45,8 @@ private:
 
 	void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) 
   {
-	  const float ANG_MAX = 95.0f * M_PI / 180.0f;
-	  const float ANG_IGNORE = 13.0f * M_PI / 180.0f;  // 전방 ±10° 무시
+	  const float ANG_MAX = 89.0f * M_PI / 180.0f;
+	  const float ANG_IGNORE = 13.0f * M_PI / 180.0f;  // 전방 ±13° 무시
 
 	  std::vector<cv::Point2f> pts;
 	  float angle = msg->angle_min;

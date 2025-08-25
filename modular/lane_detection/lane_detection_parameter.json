@@ -22,8 +22,8 @@
   "roi_top_y_coefficient": 0.7,
   "roi_bottom_y_coefficient": 1.0,
 
-  "ref_hist_sigma_ratio": 1.0,
-  "ref_hist_min_weight": 0.5,
+  "ref_hist_sigma_ratio": 0.15,
+  "ref_hist_min_weight": 0.2,
   "sliding_window_num_windows": 20,
   "sliding_window_margin": 100,
   "sliding_window_minpix": 5,
@@ -37,7 +37,7 @@
   "kernel_yellow_closing_size": 9,
   "kernel_yellow_opening_size": 3,
   
-  "center_reference_lane_one": 0.65,
+  "center_reference_lane_one": 0.63,
   "center_reference_lane_two": 0.35,
 
   "horizontal_noise_width": 80,
@@ -45,12 +45,12 @@
   "horizontal_noise_extra_pad": 30,
   "horizontal_band_corridor_ratio_thresh": 0.1,
 
-  "lane_change_tol_straight": 10.0,
+  "lane_change_tol_straight": 50.0,
   "lane_change_tol_curve": 300.0,
   "lane_change_tol_change": 400.0,
   "lane_change_streak_need": 8,
   "lane_change_m_split": 0.1,
-  "lane_ref_transition_duration_sec": 2.0,
+  "lane_ref_transition_duration_sec": 1.0,
   
   "debug_view": false
 }

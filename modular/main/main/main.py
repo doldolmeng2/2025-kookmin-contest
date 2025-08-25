@@ -46,7 +46,7 @@ class MainNode(Node):
 
         # ---- Variables ----
         self.test_mode = False
-        self.lane = 1  # 0=Lane1, 1=Lane2
+        self.lane = 0  # 0=Lane1, 1=Lane2
         self.rubbercone_offset = 0
         self.end_flag = 0
         self.lane_offset = 0
@@ -54,9 +54,10 @@ class MainNode(Node):
         self.object_dist = 0.0
         self.traffic_green = False
         self.rubbercone_end_time = None
-        self.into_lane_timer = 1.3
+        self.into_lane_timer = 1.4
         self.lane_drive_started = False
         self.lane_drive_start_time = None
+        self.now_speed = 0
 
         # ---- object_info 기본값 (10필드용) ----
         self.obj_exists   = 0.0
@@ -175,6 +176,8 @@ class MainNode(Node):
                     self.cond_count = 0
 
             elif self.mode == OBSTACLE_APPROACH:
+                cond_box  = self.box_size >= 700.0
+
                 # 여기도 '같은 차선'일 때만 차선 변경 허용
                 if self.object_dist < 2.5 and self.obstacle_same_lane():
                     # 현재 lane 기준 반대 차선으로 변경 지시
@@ -182,11 +185,21 @@ class MainNode(Node):
                     self.mode = CHANGE_LANE
                     self.get_logger().info("차선 변경 모드로 변경 (same-lane obstacle)")
                     self.last_change_time = self.get_clock().now()
-                elif self.object_dist < 2.5 and not self.obstacle_same_lane():
-                    # 다른 차선 장애물이라면 lane 유지
-                    self.get_logger().info(
-                        f"[OBSTACLE_APPROACH] other-lane obstacle → keep lane (car_lane={self.car_lane}, lane={self.lane})"
-                    )
+                elif self.object_dist > 2.5 and not cond_box:
+                    self.mode = LANE_DRIVE
+            # elif self.mode == OBSTACLE_APPROACH:
+            #     # 여기도 '같은 차선'일 때만 차선 변경 허용
+            #     if self.object_dist < 2.5 and self.obstacle_same_lane():
+            #         # 현재 lane 기준 반대 차선으로 변경 지시
+            #         self.lane = 1 - self.lane
+            #         self.mode = CHANGE_LANE
+            #         self.get_logger().info("차선 변경 모드로 변경 (same-lane obstacle)")
+            #         self.last_change_time = self.get_clock().now()
+            #     elif self.object_dist < 2.5 and not self.obstacle_same_lane():
+            #         # 다른 차선 장애물이라면 lane 유지
+            #         self.get_logger().info(
+            #             f"[OBSTACLE_APPROACH] other-lane obstacle → keep lane (car_lane={self.car_lane}, lane={self.lane})"
+            #         )
 
             elif self.mode == CHANGE_LANE and self.is_change_end():
                 self.mode = LANE_DRIVE
@@ -199,6 +212,10 @@ class MainNode(Node):
         self.controller.update(self.mode, offset, self.object_dist)
         angle = self.controller.get_angle()
         speed = self.controller.get_speed()
+        if self.now_speed < speed:
+            self.now_speed += 0.1
+        else:
+            self.now_speed = speed
 
         now = self.get_clock().now()
         if not self.lane_drive_started:
@@ -210,12 +227,12 @@ class MainNode(Node):
         # LANE_DRIVE 진입 후 8초간 속도 제한
         if self.mode == LANE_DRIVE and self.lane_drive_start_time is not None:
             elapsed_lane = (now - self.lane_drive_start_time).nanoseconds / 1e9
-            if elapsed_lane < 8.0:
-                speed = 7.0
+            if elapsed_lane < 6.0:
+                speed = 5.0
 
         # 모터 퍼블리시
         motor_msg = Float32MultiArray()
-        motor_msg.data = [float(angle), float(speed)]
+        motor_msg.data = [float(angle), float(self.now_speed)]
         self.motor_pub.publish(motor_msg)
 
         # 모드 퍼블리시
