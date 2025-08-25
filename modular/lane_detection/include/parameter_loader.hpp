@@ -48,6 +48,7 @@ struct Config {
     float lane_change_tol_change;
     int lane_change_streak_need;
     float lane_change_m_split;
+    float lane_ref_transition_duration_sec;
     bool debug_view;
 };
 LaneMode lane_mode_from_string(const std::string& mode_str);

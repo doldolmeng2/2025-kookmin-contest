@@ -56,6 +56,7 @@ Config load_config(const std::string& path) {
     config.lane_change_tol_change = j["lane_change_tol_change"];
     config.lane_change_streak_need = j["lane_change_streak_need"];
     config.lane_change_m_split = j["lane_change_m_split"];
+    config.lane_ref_transition_duration_sec = j["lane_ref_transition_duration_sec"];
     config.debug_view = j["debug_view"];
     return config;
 }

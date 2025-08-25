@@ -155,7 +155,7 @@ class MainNode(Node):
 
             elif self.mode == LANE_DRIVE:
                 # YOLO 박스 넓이 기반 접근 조건 + 같은 차선에서만 카운트
-                cond_box  = self.box_size >= 100.0
+                cond_box  = self.box_size >= 700.0
                 cond_same = self.obstacle_same_lane()
                 if cond_box and cond_same:
                     self.cond_count += 1

@@ -70,8 +70,8 @@ public:
     }
     conf_threshold_ = 0.8f;
     nms_threshold_  = 0.40f;
-    min_w_pix_      = 50;
-    min_h_pix_      = 30;
+    min_w_pix_      = 12;
+    min_h_pix_      = 12;
 
     if (enable_gui_) {
       cv::namedWindow("OBJECT DEBUG", cv::WINDOW_AUTOSIZE);
