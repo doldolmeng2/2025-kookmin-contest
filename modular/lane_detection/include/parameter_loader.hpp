@@ -55,6 +55,7 @@ struct Config {
     float lane_change_m_split;
     float lane_ref_transition_duration_sec;
     bool debug_view;
+    bool change_ref_smoothly;
 };
 LaneMode lane_mode_from_string(const std::string& mode_str);
 Config load_config(const std::string& path);

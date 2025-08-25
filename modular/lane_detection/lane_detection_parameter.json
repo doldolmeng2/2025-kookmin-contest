@@ -58,5 +58,6 @@
   "lane_change_m_split": 0.1,
   "lane_ref_transition_duration_sec": 1.0,
   
-  "debug_view": true
+  "debug_view": true,
+  "change_ref_smoothly": false
 }
