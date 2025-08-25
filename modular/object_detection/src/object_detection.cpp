@@ -79,9 +79,9 @@ public:
       timer_ = this->create_wall_timer(
         std::chrono::milliseconds(33), std::bind(&ObjectDetectionNode::onTimer, this));
     }
-    // ✅ 퍼블리시 전용 타이머 (30Hz)
+    // ✅ 퍼블리시 전용 타이머 (50Hz)
     pub_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(33),
+      std::chrono::milliseconds(20),
       std::bind(&ObjectDetectionNode::onPublishTick, this));
   }
 
