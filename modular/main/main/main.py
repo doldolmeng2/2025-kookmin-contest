@@ -121,6 +121,7 @@ class MainNode(Node):
         data = msg.data   # list[int] 형태
         self.left = data[0]
         self.right  = data[4]
+        self.get_logger().info(f"left={self.left}, right={self.right}")
 
     # ---------- Control Loop ----------
 
