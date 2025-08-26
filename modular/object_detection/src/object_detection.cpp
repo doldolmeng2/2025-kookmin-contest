@@ -68,7 +68,7 @@ public:
       RCLCPP_ERROR(this->get_logger(), "YOLO load failed: %s", e.what());
       yolo_ok_ = false;
     }
-    conf_threshold_ = 0.8f;
+    conf_threshold_ = 0.84f;
     nms_threshold_  = 0.40f;
     min_w_pix_      = 12;
     min_h_pix_      = 12;

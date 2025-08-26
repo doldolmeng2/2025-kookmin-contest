@@ -52,7 +52,7 @@ private:
 	  float angle = msg->angle_min;
 	  for (float range : msg->ranges) {
 		if (std::isfinite(range) &&
-			range >= 0.18f && range <= 0.98f &&
+			range >= 0.18f && range <= 1.00f &&
 			angle >= -ANG_MAX && angle <= ANG_MAX) {
 		  // 전방 ±ANG_IGNORE 영역은 건너뛰기
 		  if (std::abs(angle) < ANG_IGNORE) {

@@ -182,7 +182,7 @@ class MainNode(Node):
         # LANE_DRIVE 진입 후 8초간 속도 제한
         if self.mode == LANE_DRIVE and self.lane_drive_start_time is not None:
             elapsed_lane = (now - self.lane_drive_start_time).nanoseconds / 1e9
-            if elapsed_lane < 6.0:
+            if elapsed_lane < 3.0:
                 speed = 5.0
 
         # 모터 퍼블리시
@@ -243,7 +243,7 @@ class MainNode(Node):
         elif self.lane == 1 and self.left < 25:
             self.avoid_cnt += 1
             print("오른쪽 감지  카운트 :", self.avoid_cnt)
-        if self.avoid_cnt > 20:
+        if self.avoid_cnt > 10:
             self.avoid_cnt = 0
             return True
         else:

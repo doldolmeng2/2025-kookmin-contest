@@ -19,22 +19,22 @@ CHANGE_LANE       = 5  # 차선 변경 모드
 # kp: 비례 이득, kd: 미분 이득, alpha: 비선형 보정 계수
 PD_PARAMS = {
     RUBBERCONE_DRIVE: (1.1, 0.0, 0.0),
-    LANE_DRIVE:       (0.13, 0.8, 0.0),
-    CHANGE_LANE:      (0.13, 0.8, 0.0),
+    LANE_DRIVE:       (0.15, 0.3, 0.0),
+    CHANGE_LANE:      (0.15, 0.3, 0.0),
 }
 
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
 # max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
     RUBBERCONE_DRIVE: (13.0, 13.0, 0.1),
-    LANE_DRIVE:       (25.0, 15.0, 0.8),
-    CHANGE_LANE:      (25.0, 10.0, 0.8),
+    LANE_DRIVE:       (23.0, 10.0, 0.4),
+    CHANGE_LANE:      (23.0, 10.0, 0.4),
 }
 
 # 라바콘 종료 시 고정 파라미터
 # angle: 종료 직후 조향 각도, speed: 종료 직후 속도
 RUBBERCONE_END_PARAMS = {
-    'angle': -30.5,
+    'angle': -31.0,
     'speed': 15.0,
 }
 
@@ -106,7 +106,7 @@ class Controller:
             # PD 제어로 조향 계산 후 속도 제어
             self.angle = self._compute_steering_pd(mode, offset)
             params     = self.speed_params.get(mode)
-            self.speed = self._compute_speed_from_angle(self.angle, mode, params) if params else 0.5
+            self.speed = self._compute_speed_from_angle(mode, self.angle, params) if params else 0.5
 
         elif mode == RUBBERCONE_END:
             # 라바콘 종료 후 고정 파라미터 사용
@@ -117,13 +117,13 @@ class Controller:
             self.angle = self._compute_steering_pd(LANE_DRIVE, offset)
             # self.speed = 15
             params     = self.speed_params.get(LANE_DRIVE)
-            self.speed = self._compute_speed_from_angle(self.angle, mode, params) if params else 0.5
+            self.speed = self._compute_speed_from_angle(mode, self.angle, params) if params else 0.5
 
         elif mode == CHANGE_LANE:
             # 장애물 접근: 차선 주행 조향 + PI 제어 속도
             self.angle = self._compute_steering_pd(mode, offset)
             params     = self.speed_params.get(mode)
-            self.speed = self._compute_speed_from_angle(self.angle, mode, params) if params else 0.5
+            self.speed = self._compute_speed_from_angle(mode, self.angle, params) if params else 0.5
 
         else:
             # 정의되지 않은 모드에서는 안전 정지
@@ -155,7 +155,7 @@ class Controller:
         """
         speed = params.max_speed - abs(angle) * params.scale_factor
         print("speed: ", speed)
-        return max(params.min_speed, speed) - 5 if mode == BEFORE else max(params.min_speed, speed)
+        return max(params.min_speed, speed) - 2 if mode == BEFORE else max(params.min_speed, speed)
 
     def reset(self):
         """
