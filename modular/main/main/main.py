@@ -12,7 +12,7 @@ TRAFFIC_WAIT = 0
 RUBBERCONE_DRIVE = 1
 RUBBERCONE_END = 2
 LANE_DRIVE = 3
-OBSTACLE_APPROACH = 4
+BEFORE = 4
 CHANGE_LANE = 5
 
 class MainNode(Node):
@@ -39,7 +39,7 @@ class MainNode(Node):
         self.create_subscription(Float32MultiArray,'object_info',     self.object_info_callback, 10)
         self.create_subscription(Bool,            'traffic_detection',self.traffic_callback,     10)
         self.create_subscription(Joy,             'joy',              self.joy_callback,         10)
-
+        self.create_subscription(Int32MultiArray, 'xycar_ultrasonic', self.ultrasonic_callback, 10)
         # Xbox 버튼 디바운스
         self.prev_x = 0
         self.prev_b = 0
@@ -70,7 +70,7 @@ class MainNode(Node):
         self.box_cy       = float('nan')  # px
         self.box_dx       = float('nan')  # px
         self.car_lane     = -1            # -1=미정, 1=L1(왼쪽), 2=L2(오른쪽), 0=중앙
-
+        self.avoid_cnt = 0
         # 20 ms timer (~50 Hz)
         self.create_timer(0.02, self.control_cycle)
 
@@ -116,21 +116,11 @@ class MainNode(Node):
 
     def traffic_callback(self, msg: Bool):
         self.traffic_green = msg.data
-
-    # ---------- Helpers ----------
-
-    def obstacle_same_lane(self) -> bool:
-        """
-        현재 주행 차선(self.lane)과 인식된 장애물 차선(self.car_lane)이 같은지 판정.
-        - self.lane: 0=Lane1, 1=Lane2
-        - self.car_lane: 1=L1(왼쪽=1차선), 2=L2(오른쪽=2차선), 0=중앙, -1=미정
-        """
-        if self.car_lane <= 0:  # 중앙(0) 또는 미정(-1)은 같은 차선으로 보지 않음
-            return False
-        if self.lane == 0:
-            return self.car_lane == 1
-        else:
-            return self.car_lane == 2
+    
+    def ultrasonic_callback(self, msg: Int32MultiArray):
+        data = msg.data   # list[int] 형태
+        self.left = data[0]
+        self.right  = data[4]
 
     # ---------- Control Loop ----------
 
@@ -152,58 +142,21 @@ class MainNode(Node):
                 self.get_logger().info("라바콘 종료 차선 진입")
 
             elif self.mode == RUBBERCONE_END and elapsed > self.into_lane_timer:
-                self.mode = LANE_DRIVE
+                self.mode = BEFORE
 
-            elif self.mode == LANE_DRIVE:
-                # YOLO 박스 넓이 기반 접근 조건 + 같은 차선에서만 카운트
-                cond_box  = self.box_size >= 700.0
-                cond_same = self.obstacle_same_lane()
-                if cond_box and cond_same:
-                    self.cond_count += 1
-                    self.get_logger().info(
-                        f"[LANE_DRIVE] same-lane obstacle: box_size={self.box_size:.1f}, frames={self.cond_count}, car_lane={self.car_lane}, lane={self.lane}"
-                    )
-                    if self.cond_count >= self.cond_threshold:
-                        self.mode = OBSTACLE_APPROACH
-                        self.get_logger().info("장애물 접근 모드로 변경")
-                        self.cond_count = 0
-                else:
-                    # 다른 차선이면 카운트 리셋
-                    if cond_box and not cond_same:
-                        self.get_logger().info(
-                            f"[LANE_DRIVE] obstacle on other lane → ignore (car_lane={self.car_lane}, lane={self.lane})"
-                        )
-                    self.cond_count = 0
-
-            elif self.mode == OBSTACLE_APPROACH:
-                cond_box  = self.box_size >= 700.0
-
-                # 여기도 '같은 차선'일 때만 차선 변경 허용
-                if self.object_dist < 2.5 and self.obstacle_same_lane():
-                    # 현재 lane 기준 반대 차선으로 변경 지시
-                    self.lane = 1 - self.lane
-                    self.mode = CHANGE_LANE
-                    self.get_logger().info("차선 변경 모드로 변경 (same-lane obstacle)")
-                    self.last_change_time = self.get_clock().now()
-                elif self.object_dist > 2.5 and not cond_box:
+            elif self.mode == BEFORE:
+                if self.is_pass_comp():
                     self.mode = LANE_DRIVE
-            # elif self.mode == OBSTACLE_APPROACH:
-            #     # 여기도 '같은 차선'일 때만 차선 변경 허용
-            #     if self.object_dist < 2.5 and self.obstacle_same_lane():
-            #         # 현재 lane 기준 반대 차선으로 변경 지시
-            #         self.lane = 1 - self.lane
-            #         self.mode = CHANGE_LANE
-            #         self.get_logger().info("차선 변경 모드로 변경 (same-lane obstacle)")
-            #         self.last_change_time = self.get_clock().now()
-            #     elif self.object_dist < 2.5 and not self.obstacle_same_lane():
-            #         # 다른 차선 장애물이라면 lane 유지
-            #         self.get_logger().info(
-            #             f"[OBSTACLE_APPROACH] other-lane obstacle → keep lane (car_lane={self.car_lane}, lane={self.lane})"
-            #         )
-
+                    self.get_logger().info("추월 전 상태")
+            elif self.mode == LANE_DRIVE:
+                if self.obj_exists == 1:
+                    self.mode = CHANGE_LANE
+                    self.lane = 1 - self.lane
+                    self.get_logger().info("객체 박스 감지, 차선 변경 모드 전환")
             elif self.mode == CHANGE_LANE and self.is_change_end():
-                self.mode = LANE_DRIVE
-                self.get_logger().info("차선 주행 모드로 변경")
+                self.mode = BEFORE
+                self.get_logger().info("차선 변경 완료")
+        
 
         # 오프셋 선택
         offset = self.rubbercone_offset if self.mode == RUBBERCONE_DRIVE else self.lane_offset
@@ -247,7 +200,7 @@ class MainNode(Node):
             RUBBERCONE_DRIVE:  'RUBBERCONE_DRIVE',
             RUBBERCONE_END:    'RUBBERCONE_END',
             LANE_DRIVE:        'LANE_DRIVE',
-            OBSTACLE_APPROACH: 'OBSTACLE_APPROACH',
+            BEFORE:            'BEFORE',
             CHANGE_LANE:       'CHANGE_LANE',
         }
         mode_str    = f"Mode: {mode_map.get(self.mode, 'UNKNOWN')}"
@@ -280,6 +233,20 @@ class MainNode(Node):
             self.last_change_time = now
             self.get_logger().info("타이머 작동 끝")
             return True
+    
+    def is_pass_comp(self):
+        if self.lane == 0 and self.left < 25:
+            self.avoid_cnt += 1
+            print("왼쪽 감지  카운트 :", self.avoid_cnt)
+        elif self.lane == 1 and self.right < 25:
+            self.avoid_cnt += 1
+            print("오른쪽 감지  카운트 :", self.avoid_cnt)
+        if self.avoid_cnt > 20:
+            self.avoid_cnt = 0
+            return True
+        else:
+            return False
+        # 어떤 차선일때 반대쪽 초음파 20cm 이내 10번이상 감지되면
 
 def main(args=None):
     rclpy.init(args=args)
