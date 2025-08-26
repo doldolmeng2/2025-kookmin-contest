@@ -45,14 +45,14 @@ private:
 
 	void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) 
   {
-	  const float ANG_MAX = 89.0f * M_PI / 180.0f;
+	  const float ANG_MAX = 90.0f * M_PI / 180.0f;
 	  const float ANG_IGNORE = 13.0f * M_PI / 180.0f;  // 전방 ±13° 무시
 
 	  std::vector<cv::Point2f> pts;
 	  float angle = msg->angle_min;
 	  for (float range : msg->ranges) {
 		if (std::isfinite(range) &&
-			range >= 0.18f && range <= 0.95f &&
+			range >= 0.18f && range <= 0.98f &&
 			angle >= -ANG_MAX && angle <= ANG_MAX) {
 		  // 전방 ±ANG_IGNORE 영역은 건너뛰기
 		  if (std::abs(angle) < ANG_IGNORE) {
@@ -95,8 +95,8 @@ private:
       group.push_back(first);
       cv::Point2f cur = first;
 
-      // 최대 4개까지 확장
-      while (group.size() < 4) {
+      // 최대 3개까지 확장
+      while (group.size() < 3) {
         cv::Point2f next{};
         float best = 1e6f;
         bool ok = false;

@@ -53,8 +53,8 @@ private:
     // 녹색 범위 (Hue: 35~85, Sat:100~255, Val:100~255
 
     ////////////  HSV값 설정  ///////////////
-    cv::Scalar lower_green(35, 100, 100);
-    cv::Scalar upper_green(85, 255, 255);
+    cv::Scalar lower_green(50, 100, 100);
+    cv::Scalar upper_green(150, 255, 255);
     cv::Mat mask;
     cv::inRange(hsv, lower_green, upper_green, mask);
 

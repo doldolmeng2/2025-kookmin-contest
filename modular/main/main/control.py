@@ -8,7 +8,7 @@ TRAFFIC_WAIT      = 0  # 신호 대기 모드
 RUBBERCONE_DRIVE  = 1  # 라바콘 주행 모드
 RUBBERCONE_END    = 2  # 라바콘 종료 모드
 LANE_DRIVE        = 3  # 차선 주행 모드
-OBSTACLE_APPROACH = 4  # 장애물 접근 모드
+BEFORE = 4  # 장애물 접근 모드
 CHANGE_LANE       = 5  # 차선 변경 모드
 
 # ——————————————————————————————————————————————————————————————
@@ -19,16 +19,16 @@ CHANGE_LANE       = 5  # 차선 변경 모드
 # kp: 비례 이득, kd: 미분 이득, alpha: 비선형 보정 계수
 PD_PARAMS = {
     RUBBERCONE_DRIVE: (1.1, 0.0, 0.0),
-    LANE_DRIVE:       (0.15, 0.5, 0.0),
-    CHANGE_LANE:      (0.15, 0.0, 0.0),
+    LANE_DRIVE:       (0.13, 0.8, 0.0),
+    CHANGE_LANE:      (0.13, 0.8, 0.0),
 }
 
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
 # max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
-    RUBBERCONE_DRIVE: (13.0, 14.0, 0.1),
-    LANE_DRIVE:       (25.0, 10.0, 0.8),
-    CHANGE_LANE:      (10.0, 10.0, 0.1),
+    RUBBERCONE_DRIVE: (13.0, 13.0, 0.1),
+    LANE_DRIVE:       (25.0, 15.0, 0.8),
+    CHANGE_LANE:      (25.0, 10.0, 0.8),
 }
 
 # 라바콘 종료 시 고정 파라미터
@@ -40,11 +40,11 @@ RUBBERCONE_END_PARAMS = {
 
 # 장애물 접근 모드 파라미터
 # kp, ki: PI 제어 이득, target_distance: 목표 거리, base_speed: 기본 속도
-OBSTACLE_PARAMS = {
-    'kp':              0.5,
+BEFORE_PARAMS = {
+    'kp':              0.15,
     'ki':              0.1,
     'target_distance': 60,
-    'base_speed':      30,
+    'base_speed':      20,
 }
 # ——————————————————————————————————————————————————————————————
 
@@ -81,10 +81,10 @@ class Controller:
         self.rubbercone_end_speed = RUBBERCONE_END_PARAMS['speed']
 
         # 장애물 접근 파라미터
-        self.ob_kp              = OBSTACLE_PARAMS['kp']
-        self.ob_ki              = OBSTACLE_PARAMS['ki']
-        self.ob_target_distance = OBSTACLE_PARAMS['target_distance']
-        self.ob_base_speed      = OBSTACLE_PARAMS['base_speed']
+        self.ob_kp              = BEFORE_PARAMS['kp']
+        self.ob_ki              = BEFORE_PARAMS['ki']
+        self.ob_target_distance = BEFORE_PARAMS['target_distance']
+        self.ob_base_speed      = BEFORE_PARAMS['base_speed']
 
     def update(self, mode, offset: int, obstacle_dist: int):
         """
@@ -106,23 +106,24 @@ class Controller:
             # PD 제어로 조향 계산 후 속도 제어
             self.angle = self._compute_steering_pd(mode, offset)
             params     = self.speed_params.get(mode)
-            self.speed = self._compute_speed_from_angle(self.angle, params) if params else 0.5
+            self.speed = self._compute_speed_from_angle(self.angle, mode, params) if params else 0.5
 
         elif mode == RUBBERCONE_END:
             # 라바콘 종료 후 고정 파라미터 사용
             self.angle, self.speed = self.rubbercone_end_angle, self.rubbercone_end_speed
 
-        elif mode == OBSTACLE_APPROACH:
+        elif mode == BEFORE:
             # 장애물 접근: 차선 주행 조향 + PI 제어 속도
             self.angle = self._compute_steering_pd(LANE_DRIVE, offset)
-            # self.speed = self._compute_obstacle_speed(obstacle_dist) if obstacle_dist > 0 else 0.0
-            self.speed = 10
+            # self.speed = 15
+            params     = self.speed_params.get(LANE_DRIVE)
+            self.speed = self._compute_speed_from_angle(self.angle, mode, params) if params else 0.5
 
         elif mode == CHANGE_LANE:
             # 장애물 접근: 차선 주행 조향 + PI 제어 속도
             self.angle = self._compute_steering_pd(mode, offset)
             params     = self.speed_params.get(mode)
-            self.speed = self._compute_speed_from_angle(self.angle, params) if params else 0.5
+            self.speed = self._compute_speed_from_angle(self.angle, mode, params) if params else 0.5
 
         else:
             # 정의되지 않은 모드에서는 안전 정지
@@ -146,30 +147,15 @@ class Controller:
         effective_kp = params.kp * (1.0 + params.alpha * abs(error))
         return effective_kp * error + params.kd * diff
 
-    def _compute_speed_from_angle(self, angle: float, params: SpeedParams) -> float:
+    def _compute_speed_from_angle(self, mode: int, angle: float, params: SpeedParams) -> float:
         """
         조향 각도에 따른 속도 계산
         - 각도가 클수록 속도 감소
         - min_speed 이하로 떨어지지 않도록 제한
         """
         speed = params.max_speed - abs(angle) * params.scale_factor
-        return max(params.min_speed, speed)
-
-    def _compute_obstacle_speed(self, current_dist: int) -> float:
-        """
-        장애물 접근 모드에서 PI 제어로 속도 조정
-        - error: 현재 거리 - 목표 거리
-        - integral: 누적 error
-        - adjustment: kp*error + ki*integral
-        - 차선 주행 시의 최대 속도를 상한으로 사용
-        """
-        error = current_dist - self.ob_target_distance
-        self.obstacle_integral += error
-        adjustment = self.ob_kp * error + self.ob_ki * self.obstacle_integral
-
-        max_lane_speed = self._compute_speed_from_angle(self.angle, self.speed_params[LANE_DRIVE])
-        speed = self.ob_base_speed + adjustment
-        return min(max(speed, 0.0), max_lane_speed)
+        print("speed: ", speed)
+        return max(params.min_speed, speed) - 5 if mode == BEFORE else max(params.min_speed, speed)
 
     def reset(self):
         """

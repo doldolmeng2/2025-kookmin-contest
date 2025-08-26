@@ -119,9 +119,10 @@ class MainNode(Node):
     
     def ultrasonic_callback(self, msg: Int32MultiArray):
         data = msg.data   # list[int] 형태
-        self.left = data[0]
-        self.right  = data[4]
-        self.get_logger().info(f"left={self.left}, right={self.right}")
+        if len(data) > 5:
+            self.left = data[0]
+            self.right  = data[4]
+        # self.get_logger().info(f"left={self.left}, right={self.right}")
 
     # ---------- Control Loop ----------
 
@@ -150,7 +151,7 @@ class MainNode(Node):
                     self.mode = LANE_DRIVE
                     self.get_logger().info("추월 전 상태")
             elif self.mode == LANE_DRIVE:
-                if self.obj_exists == 1:
+                if self.box_size > 1900:
                     self.mode = CHANGE_LANE
                     self.lane = 1 - self.lane
                     self.get_logger().info("객체 박스 감지, 차선 변경 모드 전환")
@@ -236,10 +237,10 @@ class MainNode(Node):
             return True
     
     def is_pass_comp(self):
-        if self.lane == 0 and self.left < 25:
+        if self.lane == 0 and self.right < 25:
             self.avoid_cnt += 1
             print("왼쪽 감지  카운트 :", self.avoid_cnt)
-        elif self.lane == 1 and self.right < 25:
+        elif self.lane == 1 and self.left < 25:
             self.avoid_cnt += 1
             print("오른쪽 감지  카운트 :", self.avoid_cnt)
         if self.avoid_cnt > 20:

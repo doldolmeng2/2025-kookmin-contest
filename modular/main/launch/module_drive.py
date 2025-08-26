@@ -78,6 +78,16 @@ def generate_launch_description():
         )
     )
 
+    ultrasonic_launch = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('xycar_ultrasonic'),
+                'launch/xycar_ultrasonic.launch.py'
+            )
+        )
+    )
+
+
     # xycar_lidar.launch.py (python 형식)
     lidar_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -100,4 +110,5 @@ def generate_launch_description():
         joy_node,
         cam_launch,
         lidar_launch,
+        ultrasonic_launch
     ])
