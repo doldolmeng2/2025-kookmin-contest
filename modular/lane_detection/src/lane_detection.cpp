@@ -1037,7 +1037,7 @@ private:
         
     
         // === 차선 변경 상태 업데이트/퍼블리시 ===
-        updateLaneChangeState(/*valid=*/valid, /*center_fit=*/center_fit, /*offset=*/offset);
+        // updateLaneChangeState(/*valid=*/valid, /*center_fit=*/center_fit, /*offset=*/offset);
 
         // 연산 속도 측정 끝 //
         auto end = std::chrono::steady_clock::now();
