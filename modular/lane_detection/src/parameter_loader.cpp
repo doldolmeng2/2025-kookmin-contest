@@ -27,6 +27,12 @@ Config load_config(const std::string& path) {
     config.yellow_hsv_max_s = j["yellow_hsv_max_s"];
     config.yellow_hsv_min_v = j["yellow_hsv_min_v"];
     config.yellow_hsv_max_v = j["yellow_hsv_max_v"];
+    config.yellow_ycrcb_min_y = j["yellow_ycrcb_min_y"];
+    config.yellow_ycrcb_max_y = j["yellow_ycrcb_max_y"];
+    config.yellow_ycrcb_min_cr = j["yellow_ycrcb_min_cr"];
+    config.yellow_ycrcb_max_cr = j["yellow_ycrcb_max_cr"];
+    config.yellow_ycrcb_min_cb = j["yellow_ycrcb_min_cb"];
+    config.yellow_ycrcb_max_cb = j["yellow_ycrcb_max_cb"];
     config.lane_mode = lane_mode_from_string(j["lane_mode"]);
     config.frame_width = j["frame_width"];
     config.frame_height = j["frame_height"];

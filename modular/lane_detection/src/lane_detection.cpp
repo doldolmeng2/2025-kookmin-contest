@@ -88,42 +88,73 @@ public:
     // (1) 전처리 단계: 영상에서 "노란 차선 에지"만 추출
     // ====================================================================
     Mat preprocessYellow(const Mat& frame) {
-        // --- (a) ROI 마스크 적용: 사다리꼴 내부만 남기고 외부는 제거 ---
+        // --- (a) ROI 마스크 ---
         Mat roi_mask = trapezoidMask(frame.size());
         Mat roi_frame; frame.copyTo(roi_frame, roi_mask);
 
-        // --- (b) 색공간 변환: HLS, HSV로 변환 (노란색 검출에 유리) ---
-        Mat hls, hsv;
-        cvtColor(roi_frame, hls, COLOR_BGR2HLS);
-        cvtColor(roi_frame, hsv, COLOR_BGR2HSV);
+        // --- (b) 색공간 변환: HLS, HSV, YCrCb ---
+        Mat hls, hsv, ycrcb;
+        cvtColor(roi_frame, hls,  COLOR_BGR2HLS);
+        cvtColor(roi_frame, hsv,  COLOR_BGR2HSV);
+        cvtColor(roi_frame, ycrcb, COLOR_BGR2YCrCb); // OpenCV 순서: [Y, Cr, Cb]
 
-        // --- (c) 노란색 범위 마스크 생성 (HLS ∩ HSV) ---
-        Mat y_hls, y_hsv, y_mask;
-        inRange(hls,
+        // --- (c) 노란색 범위 마스크 생성 (HLS ∩ HSV ∩ YCrCb) ---
+        Mat y_hls, y_hsv, y_ycc, y_mask;
+        inRange(
+            hls,
             Scalar(config_.yellow_hls_min_h, config_.yellow_hls_min_l, config_.yellow_hls_min_s),
-            Scalar(config_.yellow_hls_max_h, config_.yellow_hls_max_l, config_.yellow_hls_max_s), y_hls);
+            Scalar(config_.yellow_hls_max_h, config_.yellow_hls_max_l, config_.yellow_hls_max_s),
+            y_hls
+        );
 
-        inRange(hsv,
+        inRange(
+            hsv,
             Scalar(config_.yellow_hsv_min_h, config_.yellow_hsv_min_s, config_.yellow_hsv_min_v),
-            Scalar(config_.yellow_hsv_max_h, config_.yellow_hsv_max_s, config_.yellow_hsv_max_v), y_hsv);
+            Scalar(config_.yellow_hsv_max_h, config_.yellow_hsv_max_s, config_.yellow_hsv_max_v),
+            y_hsv
+        );
 
+        // YCrCb: 채널 순서 [Y, Cr, Cb] 임에 주의!
+        inRange(
+            ycrcb,
+            Scalar(config_.yellow_ycrcb_min_y,  config_.yellow_ycrcb_min_cr, config_.yellow_ycrcb_min_cb),
+            Scalar(config_.yellow_ycrcb_max_y,  config_.yellow_ycrcb_max_cr, config_.yellow_ycrcb_max_cb),
+            y_ycc
+        );
+        // ycrcb 시각화
+        if (config_.debug_view) {
+            std::vector<cv::Mat> ch; split(ycrcb, ch);
+            imshow("YCrCb channels", (ch[0] + ch[1] + ch[2]) / 3);
+        }   
+        
+        // 교집합
         bitwise_and(y_hls, y_hsv, y_mask);
+        bitwise_and(y_mask, y_ycc, y_mask);
 
-        // --- (d) 모폴로지 연산: 잡음 제거 및 끊어진 부분 연결 ---
+        // (선택) 아주 어두운 픽셀 억제 게이트(검정 재유입 방지)
+        // cv::Mat y_gate = (ycrcb.channels()==3 ? (ycrcb[:,:,0] > Y_FLOOR) : cv::Mat());
+        // 여기선 단순히 Y 바닥선 5 적용
+        {
+            std::vector<cv::Mat> ch; split(ycrcb, ch);
+            cv::Mat y_gate = ch[0] > 5; // Y > 5
+            y_gate.convertTo(y_gate, CV_8U, 255);
+            bitwise_and(y_mask, y_gate, y_mask);
+        }
+
+        // --- (d) 모폴로지 ---
         Mat k_close = getStructuringElement(MORPH_RECT,
                         Size(config_.kernel_yellow_closing_size, config_.kernel_yellow_closing_size));
         Mat k_open  = getStructuringElement(MORPH_RECT,
-                        Size(config_.kernel_yellow_opening_size, config_.kernel_yellow_opening_size));
+                        Size(config_.kernel_yellow_opening_size,  config_.kernel_yellow_opening_size));
 
         morphologyEx(y_mask, y_mask, MORPH_CLOSE, k_close);
         morphologyEx(y_mask, y_mask, MORPH_OPEN,  k_open);
 
-        // --- (e) Canny 엣지 검출 ---
+        // --- (e) Canny ---
         Mat gray, blur_, masked_gray, edges;
         cvtColor(roi_frame, gray, COLOR_BGR2GRAY);
         GaussianBlur(gray, blur_, Size(config_.gaussian_blur_kernel_size, config_.gaussian_blur_kernel_size), 0);
 
-        // 경계부 픽셀 유실 방지 위해 dilate 후 Canny 적용
         Mat y_mask_dil;
         Mat k = getStructuringElement(MORPH_RECT, Size(3,3));
         dilate(y_mask, y_mask_dil, k);
@@ -131,11 +162,10 @@ public:
         blur_.copyTo(masked_gray, y_mask_dil);
         Canny(masked_gray, edges, config_.canny_yellow_low_threshold, config_.canny_yellow_high_threshold);
 
-        // 안전: 색 마스크로 한 번 더 제한
         bitwise_and(edges, edges, edges, y_mask);
-
-        return edges; // 최종: 노란선 에지 픽셀만 남긴 이진 영상
+        return edges;
     }
+
 
     // ====================================================================
     // (2) 투시변환: ROI 사다리꼴 → BEV 직사각형
@@ -1077,7 +1107,7 @@ int main(int argc, char** argv) {
 
     // JSON 파라미터 파일 로드 (경로 환경에 맞게 수정)
     Config config = load_config(
-        "/home/xytron/xycar_ws/src/orda/modular/lane_detection/lane_detection_parameter.json"
+        "/home/doldolmeng2/xycar_ws/src/orda/modular/lane_detection/lane_detection_parameter.json"
     );
 
     // 노드 생성 및 실행

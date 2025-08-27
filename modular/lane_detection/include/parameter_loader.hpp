@@ -19,6 +19,12 @@ struct Config {
     int yellow_hsv_max_s;
     int yellow_hsv_min_v;
     int yellow_hsv_max_v;
+    int yellow_ycrcb_min_y;
+    int yellow_ycrcb_max_y;
+    int yellow_ycrcb_min_cr;
+    int yellow_ycrcb_max_cr;
+    int yellow_ycrcb_min_cb;
+    int yellow_ycrcb_max_cb;
     LaneMode lane_mode;
     int frame_width;
     int frame_height;
