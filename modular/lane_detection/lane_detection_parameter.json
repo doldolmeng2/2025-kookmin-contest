@@ -34,7 +34,7 @@
   "sliding_window_num_windows": 20,
   "sliding_window_margin": 100,
   "sliding_window_minpix": 5,
-  "corridor_width": 700,
+  "corridor_width": 900,
 
   "gaussian_blur_kernel_size": 5,
 
@@ -65,6 +65,6 @@
   "lane_change_m_split": 0.1,
   "lane_ref_transition_duration_sec": 1.0,
   
-  "debug_view": true,
+  "debug_view": false,
   "change_ref_smoothly": false
 }

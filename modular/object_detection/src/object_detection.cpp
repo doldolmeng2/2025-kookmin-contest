@@ -69,7 +69,7 @@ public:
     
     // --- YOLO 초기화 ---
     try {
-      net_ = cv::dnn::readNet("/home/doldolmeng2/xycar_ws/src/orda/modular/object_detection/best.onnx");
+      net_ = cv::dnn::readNet("/home/xytron/xycar_ws/src/orda/modular/object_detection/best.onnx");
       net_.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
       net_.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
       yolo_ok_ = true;
@@ -77,7 +77,7 @@ public:
       RCLCPP_ERROR(this->get_logger(), "YOLO load failed: %s", e.what());
       yolo_ok_ = false;
     }
-    conf_threshold_ = 0.84f;
+    conf_threshold_ = 0.83f;
     nms_threshold_  = 0.40f;
     min_w_pix_      = 12;
     min_h_pix_      = 12;

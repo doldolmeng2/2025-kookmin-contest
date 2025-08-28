@@ -19,16 +19,16 @@ CHANGE_LANE       = 5  # 차선 변경 모드
 # kp: 비례 이득, kd: 미분 이득, alpha: 비선형 보정 계수
 PD_PARAMS = {
     RUBBERCONE_DRIVE: (1.1, 0.0, 0.0),
-    LANE_DRIVE:       (0.15, 0.3, 0.0),
-    CHANGE_LANE:      (0.15, 0.3, 0.0),
+    LANE_DRIVE:       (0.145, 0.3, 0.0),
+    CHANGE_LANE:      (0.145, 0.3, 0.0),
 }
 
 # 속도 제어 파라미터: mode → (max_speed, min_speed, scale_factor)
 # max_speed: 최대 속도, min_speed: 최소 속도, scale_factor: 조향각 스케일 계수
 SPEED_PARAMS = {
     RUBBERCONE_DRIVE: (13.0, 13.0, 0.1),
-    LANE_DRIVE:       (23.0, 10.0, 0.4),
-    CHANGE_LANE:      (23.0, 10.0, 0.4),
+    LANE_DRIVE:       (31.0, 12.0, 0.5),
+    CHANGE_LANE:      (31.0, 12.0, 0.5),
 }
 
 # 라바콘 종료 시 고정 파라미터

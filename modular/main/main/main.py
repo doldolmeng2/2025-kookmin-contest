@@ -54,7 +54,7 @@ class MainNode(Node):
 
         # ---- Variables ----
         self.test_mode = False
-        self.lane = 0  # 0=Lane1, 1=Lane2
+        self.lane = 1  # 0=Lane1, 1=Lane2
         self.rubbercone_offset = 0
         self.end_flag = 0
         self.lane_offset = 0
@@ -231,18 +231,7 @@ class MainNode(Node):
         cv2.waitKey(1)
 
     def is_change_end(self):
-        now = self.get_clock().now()
-        dt = (now - self.last_change_time).nanoseconds / 1e9
-        if dt < 4.0:
-            if (now - self.last_log_time).nanoseconds / 1e9 > 1.0:
-                remaining = 5.0 - dt
-                self.get_logger().info(f"타이머 작동중... 남은 시간: {remaining:.1f}초")
-                self.last_log_time = now
-            return False
-        else:
-            self.last_change_time = now
-            self.get_logger().info("타이머 작동 끝")
-            return True
+        return True
     
     def is_pass_comp(self):
         if self.lane == 0 and self.right < 25:
