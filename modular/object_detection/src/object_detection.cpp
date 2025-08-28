@@ -44,19 +44,28 @@ public:
     // /lane_fit이 프레임 좌표계인지 여부(기본 true). BEV이면 false로 둔다(별도 H 필요).
     lane_fit_is_frame_    = this->declare_parameter<bool>("lane_fit_is_frame", true);
 
+
+    // 이미지/센서용: 최신성 중시, 유실 허용
+    auto qos_sensor = rclcpp::SensorDataQoS().best_effort();   // KeepLast(depth)는 SensorDataQoS 기본
+    // 가벼운 수치 토픽용: BestEffort + Volatile (latched 아님)
+    auto qos_fast   = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
+    // 상태/명령은 유실이 치명적이면 Reliable 유지 권장
+    auto qos_state  = rclcpp::QoS(rclcpp::KeepLast(10));
+
+
     sub_scan_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
         "/scan", rclcpp::SensorDataQoS(),
         std::bind(&ObjectDetectionNode::onScan, this, _1));
 
     sub_img_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "/resized_image", 10,
+        "/resized_image", qos_fast,
         std::bind(&ObjectDetectionNode::onImage, this, _1));
 
     // ✅ lane_fit 구독 추가
     sub_lane_fit_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
-        "/lane_fit", 10, std::bind(&ObjectDetectionNode::onLaneFit, this, _1));
+        "/lane_fit", qos_fast, std::bind(&ObjectDetectionNode::onLaneFit, this, _1));
 
-    pub_obj_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/object_info", 10);
+    pub_obj_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/object_info", qos_fast);
     
     // --- YOLO 초기화 ---
     try {

@@ -6,6 +6,7 @@ from main.control import Controller
 import cv2
 import numpy as np
 from sensor_msgs.msg import Joy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
 # 모드 상수
 TRAFFIC_WAIT = 0
@@ -31,13 +32,20 @@ class MainNode(Node):
         self.controller = Controller(self)
 
         # ---- Pub/Sub ----
-        self.motor_pub = self.create_publisher(Float32MultiArray, 'xycar_motor', 10)
-        self.mode_pub  = self.create_publisher(Int32MultiArray,  'mode_info',   10)
 
-        self.create_subscription(Int32MultiArray, 'rubbercone_info',  self.rubbercone_callback, 10)
-        self.create_subscription(Int16,           'lane_offset',      self.lane_offset_callback, 10)
-        self.create_subscription(Float32MultiArray,'object_info',     self.object_info_callback, 10)
-        self.create_subscription(Bool,            'traffic_detection',self.traffic_callback,     10)
+        qos_sensor = QoSProfile(
+            depth=10,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE   # latch 안 함
+        )
+        
+        self.motor_pub = self.create_publisher(Float32MultiArray, 'xycar_motor', 10)
+        self.mode_pub  = self.create_publisher(Int32MultiArray,  'mode_info',   qos_sensor)
+
+        self.create_subscription(Int32MultiArray, 'rubbercone_info',  self.rubbercone_callback, qos_sensor)
+        self.create_subscription(Int16,           'lane_offset',      self.lane_offset_callback, qos_sensor)
+        self.create_subscription(Float32MultiArray,'object_info',     self.object_info_callback, qos_sensor)
+        self.create_subscription(Bool,            'traffic_detection',self.traffic_callback,     qos_sensor)
         self.create_subscription(Joy,             'joy',              self.joy_callback,         10)
         self.create_subscription(Int32MultiArray, 'xycar_ultrasonic', self.ultrasonic_callback, 10)
         # Xbox 버튼 디바운스

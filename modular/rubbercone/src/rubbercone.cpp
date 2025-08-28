@@ -21,13 +21,20 @@ public:
     rubber_offset_value_(0),
     rubber_end_value_(0)
   {
+    // 이미지/센서용: 최신성 중시, 유실 허용
+    auto qos_sensor = rclcpp::SensorDataQoS().best_effort();   // KeepLast(depth)는 SensorDataQoS 기본
+    // 가벼운 수치 토픽용: BestEffort + Volatile (latched 아님)
+    auto qos_fast   = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
+    // 상태/명령은 유실이 치명적이면 Reliable 유지 권장
+    auto qos_state  = rclcpp::QoS(rclcpp::KeepLast(10));
+    
     // QoS는 LaserScan에 맞춰 SensorDataQoS 사용
     scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
       "/scan", rclcpp::SensorDataQoS(),
       std::bind(&LidarViewer::scanCallback, this, _1));
 
     info_pub_ = create_publisher<std_msgs::msg::Int32MultiArray>(
-      "rubbercone_info", 10);
+      "rubbercone_info", qos_fast);
 
     info_timer_ = create_wall_timer(
       std::chrono::milliseconds(20),

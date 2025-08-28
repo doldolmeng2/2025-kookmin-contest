@@ -43,9 +43,16 @@ public:
       center_reference_lane_one_(config_.center_reference_lane_one),
       center_reference_lane_two_(config_.center_reference_lane_two)
     {   
+        // 이미지/센서용: 최신성 중시, 유실 허용
+        auto qos_sensor = rclcpp::SensorDataQoS().best_effort();   // KeepLast(depth)는 SensorDataQoS 기본
+        // 가벼운 수치 토픽용: BestEffort + Volatile (latched 아님)
+        auto qos_fast   = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
+        // 상태/명령은 유실이 치명적이면 Reliable 유지 권장
+        auto qos_state  = rclcpp::QoS(rclcpp::KeepLast(10));
+
         // 1) 카메라 영상 구독: /resized_image (BGR8)
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/resized_image", 10,
+            "/resized_image", qos_sensor,
             std::bind(&LaneDetector::imageCallback, this, std::placeholders::_1)
         );
 
@@ -53,18 +60,18 @@ public:
         //    - mode: 3=차선주행, 5=차선변경
         //    - lane: 0=1차선, 1=2차선
         mode_sub_ = this->create_subscription<std_msgs::msg::Int32MultiArray>(
-            "/mode_info", 10,
+            "/mode_info", qos_fast,
             std::bind(&LaneDetector::modeCallback, this, std::placeholders::_1)
         );
 
         // 3) 계산된 오프셋 발행: /lane_offset (Int16, 픽셀 단위)
-        offset_pub_ = this->create_publisher<std_msgs::msg::Int16>("/lane_offset", 10);
+        offset_pub_ = this->create_publisher<std_msgs::msg::Int16>("/lane_offset", qos_fast);
         
         // 4) 계산된 중앙선 파라미터 발행: /lane_fit (Float32MultiArray, [m, b])
-        fit_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/lane_fit", 10);
+        fit_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/lane_fit", qos_fast);
 
         // 5) (차선변경모드인지, 차선변경성공했는지) 를 담아서 발행한다.
-        lane_change_state_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("/lane_change_state", 10);
+        lane_change_state_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("/lane_change_state", qos_fast);
 
         // 6) ROI 사다리꼴을 BEV 직사각형으로 변환하기 위한 호모그래피 행렬 계산
         buildHomography();

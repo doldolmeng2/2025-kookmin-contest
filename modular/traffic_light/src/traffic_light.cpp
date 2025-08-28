@@ -10,13 +10,20 @@ public:
   TrafficLightDetector()
   : Node("traffic_light_detector")
   {
+    // 이미지/센서용: 최신성 중시, 유실 허용
+    auto qos_sensor = rclcpp::SensorDataQoS().best_effort();   // KeepLast(depth)는 SensorDataQoS 기본
+    // 가벼운 수치 토픽용: BestEffort + Volatile (latched 아님)
+    auto qos_fast   = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
+    // 상태/명령은 유실이 치명적이면 Reliable 유지 권장
+    auto qos_state  = rclcpp::QoS(rclcpp::KeepLast(10));
+
     // 퍼블리셔
     pub_ = this->create_publisher<std_msgs::msg::Bool>(
-      "/traffic_detection", 10);
+      "/traffic_detection", qos_fast);
 
     // 서브스크라이버
     sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-      "/resized_image", 10,
+      "/resized_image", qos_fast,
       std::bind(&TrafficLightDetector::image_callback, this, std::placeholders::_1));
 
     ////////////  임계치 설정  ///////////////
