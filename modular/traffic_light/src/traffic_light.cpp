@@ -28,7 +28,7 @@ public:
 
     ////////////  임계치 설정  ///////////////
     // 녹색 픽셀 검출 임계치 0.01 = 1%
-    threshold_ratio_ = 0.10;
+    threshold_ratio_ = 0.02;
   }
 
 private:
@@ -60,8 +60,8 @@ private:
     // 녹색 범위 (Hue: 35~85, Sat:100~255, Val:100~255
 
     ////////////  HSV값 설정  ///////////////
-    cv::Scalar lower_green(100, 100, 100);
-    cv::Scalar upper_green(145, 255, 255);
+    cv::Scalar lower_green(50, 100, 100);
+    cv::Scalar upper_green(150, 255, 255);
     cv::Mat mask;
     cv::inRange(hsv, lower_green, upper_green, mask);
 
